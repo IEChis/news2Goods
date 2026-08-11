@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+/* ============================================================
+   设计基座（Tailwind v4 @theme）
+   - 品牌色：高亮紫（高对比，落在浅灰中性底上）
+   - 中性底：浅灰 app 背景 + 白色卡片
+   ============================================================ */
+@theme {
+  --color-brand-50:  #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+
+  --color-app: #f6f7f9;
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+
+  body {
+    background: var(--color-app);
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
+                 "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* 细而淡的滚动条 */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+}
+
+@layer components {
+  /* 卡片：白底 + 清晰描边 + 轻阴影 */
+  .card {
+    @apply bg-white rounded-2xl border border-gray-200 shadow-sm;
+  }
+  .card-hover {
+    @apply transition-shadow duration-200 hover:shadow-md;
+  }
+
+  /* 小标号 / 分区标签 */
+  .text-meta {
+    @apply text-[11px] tracking-[0.16em] uppercase text-gray-400 font-semibold;
+  }
+  .section-label {
+    @apply text-[13px] font-semibold text-gray-700;
+  }
+
+  /* 实心品牌主按钮（去掉渐变，更干练） */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 h-11 px-6 rounded-xl bg-brand-600 text-white text-[14px] font-medium transition-colors hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  /* 次级幽灵按钮 */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-white border border-gray-200 text-gray-700 text-[13px] font-medium transition-colors hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  /* 品牌色 chip */
+  .chip-brand {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-brand-50 text-brand-700;
+  }
+}
+
+/* ---- 兼容既有组件类（实心化，去渐变） ---- */
+.btn-brand { background-color: var(--color-brand-600); transition: background-color .2s; }
+.btn-brand:hover { background-color: var(--color-brand-700); }
+
+/* 关键数字：实心品牌色 */
+.text-gradient-brand { color: var(--color-brand-600); }
+
+/* 选中行：淡紫底 + 紫边 */
+.row-selected { background-color: var(--color-brand-50); border-color: var(--color-brand-200) !important; }
+
+/* 头像：实心品牌色 */
+.avatar-gradient { background-color: var(--color-brand-600); }
+
+/* 侧栏选中指示条（实心） */
+.accent-bar { position: relative; }
+.accent-bar::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background-color: var(--color-brand-600);
+  border-radius: 0 2px 2px 0;
+}
+
+/* 分类小色块（实色 + 白图标） */
+.cat-chip {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0;
+}
+
+.step-num-hidden { display: none; }

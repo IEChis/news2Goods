@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>热点营销 · 运营后台</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- 顶栏：后台标识 + 数据来源徽章 + 返回工作台入口 -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">H</span>
+      <span class="brand-name">热点营销 · 运营后台</span>
+    </div>
+    <div class="topbar-right">
+      <div id="source-badge" class="source-badge source-default" title="当前配置生效来源">
+        <span class="dot"></span><span class="label">探测中…</span>
+      </div>
+      <button id="reprobe" class="btn-ghost btn-sm" title="重新探测服务端配置">重新探测</button>
+      <a class="btn-ghost btn-sm" href="http://localhost:5173/">← 返回工作台</a>
+    </div>
+  </header>
+
+  <!-- 左侧导航：两组（本页配置区块 / 其它后台页面） -->
+  <aside class="sidebar">
+    <div class="nav-group">
+      <div class="nav-group-title">本页配置区块</div>
+      <nav class="nav-list" id="section-nav"><!-- 当前页区块锚点，运行时注入 --></nav>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">后台页面</div>
+      <nav class="nav-list" id="page-nav"><!-- 其它页面入口，运行时注入 --></nav>
+    </div>
+  </aside>
+
+  <!-- 内容区：卡片式分节 -->
+  <main class="main" id="main">
+    <div class="page-head">
+      <h1 id="page-title">—</h1>
+      <p id="page-sub">—</p>
+    </div>
+    <div id="content"><!-- 卡片分节，运行时注入 --></div>
+  </main>
+
+  <!-- 底部固定操作栏：保存等主操作，滚动时不消失 -->
+  <footer class="bottombar">
+    <div class="bottombar-hint" id="save-hint">加载中…</div>
+    <div class="bottombar-actions">
+      <button id="btn-export" class="btn-ghost" title="把当前配置导出为 JSON 文件">导出配置</button>
+      <button id="btn-import" class="btn-ghost" title="从 JSON 文件导入配置（会校验格式）">导入配置</button>
+      <input id="import-file" type="file" accept=".json,application/json" hidden />
+      <button id="btn-reset" class="btn-ghost">重置为默认</button>
+      <button id="btn-save" class="btn-primary">保存更改 <span class="kbd">Ctrl/⌘ S</span></button>
+    </div>
+  </footer>
+
+  <!-- 轻提示 -->
+  <div id="toast" class="toast"></div>
+
+  <!-- 原生 JS，classic script（不用 ES module，保证 file:// 双击也能跑） -->
+  <script src="./app.js" defer></script>
+</body>
+</html>

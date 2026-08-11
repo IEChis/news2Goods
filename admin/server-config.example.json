@@ -1,0 +1,611 @@
+{
+  "siteName": "热点营销运营后台（生产环境）",
+  "siteDesc": "由服务端下发的生产配置",
+  "brandColor": "#7c3aed",
+  "defaultPrompt": "语气有网感，突出商品卖点，加入互动与福利钩子。",
+  "maxNews": 20,
+  "workflows": {
+    "getNews": {
+      "id": "<COZE_WORKFLOW_ID>",
+      "label": "抓取新闻热点"
+    },
+    "matchGoods": {
+      "id": "<COZE_WORKFLOW_ID>",
+      "label": "匹配商品"
+    },
+    "createCopy": {
+      "id": "<COZE_WORKFLOW_ID>",
+      "label": "生成营销文案"
+    }
+  },
+  "prompt": {
+    "system": "你是一位资深的微博营销文案专家，擅长把热点新闻与商品结合，产出高转化率的微博文案。\n\n# 任务\n基于下方【素材】中的新闻热点、商品信息与【创作要求】，创作 1 条营销文案。\n\n# 写作规范\n1. 仅输出 1 个完整版本，严格遵循【创作要求】中的“主打语调”和“创作风格 / 风格要求”，不要拆分成多个版本，也不要使用任何分隔符或编号。\n2. 严禁任何前缀、编号或分隔标记（如“版本1：”、“A:”、“---”、“【】”等等）。\n3. 严禁开场白、解释、注释，以及用 markdown 代码块包裹。\n4. 单个版本 100-200 字，语气符合微博调性（有网感、有梗、emoji 自然）。\n5. 至少包含 1 个 # 话题标签。\n6. 末尾必须带互动提问或限时福利钩子。\n7. 【商品边界·硬约束】严禁在文案中提及【商品清单】以外的产品。只能使用清单中明确列出的商品名、价格、卖点；不允许添加、替换、联想或推荐同类其他商品。文案中提及的商品数量必须与【商品清单】保持一致。",
+    "template": "【新闻热点】\n标题：{{hotspot_title}}\n摘要：{{hotspot_summary}}\n话题标签：{{topic_tags}}\n\n【商品清单】\n{{product_list}}\n\n【创作要求】\n主打语调：{{tone}}\n创作风格：{{style_name}} —— {{style_requirement}}",
+    "itemFormat": "- 商品：{{product_name}}｜价格：¥{{product_price}}｜分类：{{product_category}}｜卖点：{{product_selling}}"
+  },
+  "creativeStyles": [
+    {
+      "name": "热点借势",
+      "requirement": "先接住热点情绪再自然过渡到商品，重体验感。"
+    },
+    {
+      "name": "促销导向",
+      "requirement": "突出价格钩子和紧迫感，重转化。"
+    },
+    {
+      "name": "抽奖转发",
+      "requirement": "吸引流量，增加抽奖转发"
+    }
+  ],
+  "tonePresets": [
+    "热点借势",
+    "促销导向",
+    "互动话题"
+  ],
+  "llm": {
+    "simulate": false,
+    "baseURL": "https://aigw.yuexiuproperty.cn/v1/chat/completions",
+    "model": "deepseek-v4-flash"
+  },
+  "matchGoods": {
+    "mode": "llm",
+    "prompt": "# 角色：商品匹配师\n你是一名专业的电商商品匹配师，擅长从热点新闻中识别出用户可能产生的消费需求，并将其转化为可在商品库中检索的关键词。\n\n# 目标\n阅读新闻，判断这条新闻会让读者联想到哪些\"值得购买的商品\"，并输出一组用于检索商品库的关键词。\n\n# 输入\n- 新闻标题：{{title}}\n- 新闻内容：{{brief}}\n\n# 技能\n1. 提取新闻中的显性消费信号（如降温→保暖衣物、情人节→礼物、高考→文具/电子产品）。\n2. 推断新闻背后的隐性需求（如极端天气→家居应急、节日→馈赠、健康话题→食品/保健）。\n3. 把需求翻译成\"商品名 / 品类 / 卖点\"形式的简练关键词。\n\n# 工作流\n1. 阅读新闻标题《{{title}}》与内容：{{brief}}\n2. 列出这条新闻可能带动的 3~8 个商品方向，优先贴近真实在售品类。\n3. 将每个方向压缩为 1~4 个字的检索关键词（名词为主，可含品类或核心卖点）。\n\n# 输出格式\n仅输出一行关键词，用中文逗号（，）或顿号（、）分隔，例如：保暖衣物，礼物，坚果，咖啡\n不要输出编号、解释、Markdown 或任何额外文字。\n\n# 库内主要品类（供你偏向，提高命中率）\n食品、礼品、食品饮料、数码配件、游戏外设、手机配件、清凉家电、服饰配饰、骑行装备、智能硬件、旅行用品\n\n# 限制\n- 只输出商品关键词，不要涉及其他内容。\n- 关键词需要简练，不要多余的形容词与修饰语。\n- 优先输出能在商品库中被检索到的品类或商品名。\n- 如果确实对应不出任何商品，则只输出：没有对应内容"
+  },
+  "products": [
+    {
+      "id": "p1",
+      "name": "游戏鼠标垫 黑神话悟空联名款 900×400mm",
+      "price": 89,
+      "originalPrice": 129,
+      "category": "游戏外设",
+      "selling": [
+        "联名授权",
+        "精密锁边",
+        "防滑底面",
+        "RGB灯效"
+      ],
+      "icon": "🎮",
+      "gradient": "linear-gradient(135deg,#818cf8,#4f46e5)"
+    },
+    {
+      "id": "p2",
+      "name": "华为 Mate 70 Pro 钛金属保护壳 磁吸款",
+      "price": 149,
+      "originalPrice": 199,
+      "category": "手机配件",
+      "selling": [
+        "钛金属质感",
+        "MagSafe磁吸",
+        "防摔军工级",
+        "轻薄0.8mm"
+      ],
+      "icon": "📱",
+      "gradient": "linear-gradient(135deg,#60a5fa,#3b82f6)"
+    },
+    {
+      "id": "p3",
+      "name": "桌面迷你空调扇 制冷加湿三合一 静音款",
+      "price": 168,
+      "originalPrice": 259,
+      "category": "清凉家电",
+      "selling": [
+        "3秒速冷",
+        "大容量水箱",
+        "静音30dB",
+        "USB供电"
+      ],
+      "icon": "❄️",
+      "gradient": "linear-gradient(135deg,#5eead4,#14b8a6)"
+    },
+    {
+      "id": "p4",
+      "name": "繁花同款 90年代复古丝巾 上海老字号",
+      "price": 68,
+      "originalPrice": 98,
+      "category": "服饰配饰",
+      "selling": [
+        "繁花同款",
+        "真丝材质",
+        "上海风情",
+        "送礼佳品"
+      ],
+      "icon": "🧣",
+      "gradient": "linear-gradient(135deg,#f9a8d4,#ec4899)"
+    },
+    {
+      "id": "p5",
+      "name": "城市骑行头盔 智能款 蓝牙通话+LED警示灯",
+      "price": 329,
+      "originalPrice": 459,
+      "category": "骑行装备",
+      "selling": [
+        "蓝牙5.3",
+        "智能灯光",
+        "MIPS保护",
+        "轻量280g"
+      ],
+      "icon": "🚴",
+      "gradient": "linear-gradient(135deg,#86efac,#22c55e)"
+    },
+    {
+      "id": "p6",
+      "name": "AI 智能陪伴机器人 桌面版 语音对话+情绪识别",
+      "price": 599,
+      "originalPrice": 899,
+      "category": "智能硬件",
+      "selling": [
+        "GPT大模型",
+        "情绪识别",
+        "儿童模式",
+        "IoT控制"
+      ],
+      "icon": "🤖",
+      "gradient": "linear-gradient(135deg,#a5b4fc,#6366f1)"
+    },
+    {
+      "id": "p7",
+      "name": "便携旅行收纳套装 6件套 防水压缩袋",
+      "price": 49,
+      "originalPrice": 79,
+      "category": "旅行用品",
+      "selling": [
+        "防水材质",
+        "压缩收纳",
+        "6件套装",
+        "轻便出行"
+      ],
+      "icon": "🧳",
+      "gradient": "linear-gradient(135deg,#e5e7eb,#9ca3af)"
+    },
+    {
+      "id": "p8",
+      "name": "冻干柠檬片 即冲即饮 独立包装 100片",
+      "price": 29.9,
+      "originalPrice": 49.9,
+      "category": "食品饮料",
+      "selling": [
+        "FD冻干技术",
+        "无添加糖",
+        "独立包装",
+        "冷热双泡"
+      ],
+      "icon": "🍋",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p9",
+      "name": "氮化镓充电器 100W 三口快充 折叠插脚",
+      "price": 129,
+      "originalPrice": 199,
+      "category": "数码配件",
+      "selling": [
+        "GaN氮化镓",
+        "100W大功率",
+        "三口同时充",
+        "折叠便携"
+      ],
+      "icon": "🔌",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p10",
+      "name": "复古骑行背包 防水卷口设计 25L大容量",
+      "price": 199,
+      "originalPrice": 299,
+      "category": "骑行装备",
+      "selling": [
+        "防水面料",
+        "卷口设计",
+        "25L容量",
+        "反光条"
+      ],
+      "icon": "🎒",
+      "gradient": "linear-gradient(135deg,#fdba74,#f97316)"
+    },
+    {
+      "id": "p11",
+      "name": "头戴耳机",
+      "price": 499,
+      "originalPrice": 699,
+      "category": "数码配件",
+      "selling": [
+        "无线蓝牙"
+      ],
+      "icon": "🎧",
+      "gradient": "linear-gradient(135deg,#818cf8,#4f46e5)"
+    },
+    {
+      "id": "p12",
+      "name": "定制八音盒",
+      "price": 807.92,
+      "originalPrice": 969.5,
+      "category": "礼品",
+      "selling": [
+        "品质保证",
+        "适合商务馈赠"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p13",
+      "name": "网红咖啡豆",
+      "price": 180.8,
+      "originalPrice": 216.96,
+      "category": "食品",
+      "selling": [
+        "保质期8个月",
+        "健康美味"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p14",
+      "name": "轻奢钥匙扣",
+      "price": 892.83,
+      "originalPrice": 1071.4,
+      "category": "礼品",
+      "selling": [
+        "送礼首选",
+        "适合纪念日"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p15",
+      "name": "网红燕麦片",
+      "price": 145.99,
+      "originalPrice": 175.19,
+      "category": "食品",
+      "selling": [
+        "保质期11个月",
+        "健康美味"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p16",
+      "name": "高端摆件87",
+      "price": 714.15,
+      "originalPrice": 856.98,
+      "category": "礼品",
+      "selling": [
+        "设计独特",
+        "适合节日"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p17",
+      "name": "家庭装薯片",
+      "price": 274.74,
+      "originalPrice": 329.69,
+      "category": "食品",
+      "selling": [
+        "保质期8个月",
+        "回购率高"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p18",
+      "name": "简约手办14",
+      "price": 837.02,
+      "originalPrice": 1004.42,
+      "category": "礼品",
+      "selling": [
+        "送礼首选",
+        "适合纪念日"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p19",
+      "name": "进口曲奇饼",
+      "price": 44.14,
+      "originalPrice": 52.97,
+      "category": "食品",
+      "selling": [
+        "保质期8个月",
+        "口感极佳"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p20",
+      "name": "简约手办84",
+      "price": 232.97,
+      "originalPrice": 279.56,
+      "category": "礼品",
+      "selling": [
+        "设计独特",
+        "适合商务馈赠"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p21",
+      "name": "美味巧克力",
+      "price": 213.77,
+      "originalPrice": 256.52,
+      "category": "食品",
+      "selling": [
+        "保质期11个月. 口感极佳"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p22",
+      "name": "轻奢手办48",
+      "price": 468.51,
+      "originalPrice": 562.21,
+      "category": "礼品",
+      "selling": [
+        "送礼首选",
+        "适合商务馈赠"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p23",
+      "name": "有机坚果礼",
+      "price": 165.49,
+      "originalPrice": 198.59,
+      "category": "食品",
+      "selling": [
+        "保质期8个月",
+        "健康美味"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p24",
+      "name": "限量马克杯",
+      "price": 97.88,
+      "originalPrice": 117.46,
+      "category": "礼品",
+      "selling": [
+        "包装精美",
+        "适合纪念日"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p25",
+      "name": "有机水果软",
+      "price": 168.18,
+      "originalPrice": 201.82,
+      "category": "食品",
+      "selling": [
+        "保质期4个月",
+        "精选原料"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p26",
+      "name": "节日盲盒公",
+      "price": 785.31,
+      "originalPrice": 942.37,
+      "category": "礼品",
+      "selling": [
+        "包装精美",
+        "适合生日"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p27",
+      "name": "特产水果软",
+      "price": 119.13,
+      "originalPrice": 142.96,
+      "category": "食品",
+      "selling": [
+        "保质期9个月",
+        "回购率高"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p28",
+      "name": "限量装饰画",
+      "price": 994.47,
+      "originalPrice": 1193.36,
+      "category": "礼品",
+      "selling": [
+        "设计独特",
+        "适合节日"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p29",
+      "name": "进口咖啡豆",
+      "price": 154.66,
+      "originalPrice": 185.59,
+      "category": "食品",
+      "selling": [
+        "保质期9个月",
+        "精选原料"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p30",
+      "name": "可爱盲盒公",
+      "price": 838.96,
+      "originalPrice": 1006.75,
+      "category": "礼品",
+      "selling": [
+        "设计独特",
+        "适合生日"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p31",
+      "name": "传统普洱茶",
+      "price": 194.96,
+      "originalPrice": 233.95,
+      "category": "食品",
+      "selling": [
+        "保质期3个月",
+        "精选原料"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p32",
+      "name": "可爱盲盒公",
+      "price": 338.48,
+      "originalPrice": 406.18,
+      "category": "礼品",
+      "selling": [
+        "设计独特",
+        "适合纪念日"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p33",
+      "name": "手工巧克力",
+      "price": 160.08,
+      "originalPrice": 192.1,
+      "category": "食品",
+      "selling": [
+        "保质期5个月",
+        "口感极佳"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    },
+    {
+      "id": "p34",
+      "name": "简约摆件39",
+      "price": 123.05,
+      "originalPrice": 147.66,
+      "category": "礼品",
+      "selling": [
+        "送礼首选",
+        "适合纪念日"
+      ],
+      "icon": "🎁",
+      "gradient": "linear-gradient(135deg,#a78bfa,#7c3aed)"
+    },
+    {
+      "id": "p35",
+      "name": "进口坚果礼",
+      "price": 261.26,
+      "originalPrice": 313.51,
+      "category": "食品",
+      "selling": [
+        "保质期5个月",
+        "口感极佳"
+      ],
+      "icon": "🍎",
+      "gradient": "linear-gradient(135deg,#fde047,#facc15)"
+    }
+  ],
+  "newsSources": [
+    {
+      "id": "src-weibo",
+      "name": "微博热搜",
+      "url": "https://weibo.com/ajax/side/hotSearch",
+      "kind": "weibo",
+      "enabled": true,
+      "builtin": true,
+      "jsonItemsPath": "",
+      "jsonTitlePath": "title",
+      "jsonBriefPath": "summary",
+      "jsonUrlPath": "url"
+    },
+    {
+      "id": "src-toutiao",
+      "name": "今日头条热榜",
+      "url": "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc",
+      "kind": "toutiao",
+      "enabled": true,
+      "builtin": true,
+      "jsonItemsPath": "",
+      "jsonTitlePath": "title",
+      "jsonBriefPath": "summary",
+      "jsonUrlPath": "url"
+    },
+    {
+      "id": "src-bilibili",
+      "name": "B站热门",
+      "url": "https://api.bilibili.com/x/web-interface/popular?ps=20",
+      "kind": "bilibili",
+      "enabled": true,
+      "builtin": true,
+      "jsonItemsPath": "",
+      "jsonTitlePath": "title",
+      "jsonBriefPath": "summary",
+      "jsonUrlPath": "url"
+    },
+    {
+      "id": "src-zhihu",
+      "name": "知乎热榜",
+      "url": "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total?limit=20",
+      "kind": "zhihu",
+      "enabled": true,
+      "builtin": true,
+      "jsonItemsPath": "",
+      "jsonTitlePath": "title",
+      "jsonBriefPath": "summary",
+      "jsonUrlPath": "url"
+    },
+    {
+      "id": "src-baidu",
+      "name": "百度热点",
+      "url": "https://top.baidu.com/board?tab=realtime",
+      "kind": "baidu",
+      "enabled": true,
+      "builtin": true,
+      "jsonItemsPath": "",
+      "jsonTitlePath": "title",
+      "jsonBriefPath": "summary",
+      "jsonUrlPath": "url"
+    }
+  ],
+  "eval": {
+    "enabledReview": true,
+    "weightsMachine": 0.5,
+    "lengthMin": 100,
+    "lengthMax": 200,
+    "emojiMin": 0,
+    "emojiMax": 4,
+    "hashtagCountMax": 5,
+    "bannedWords": "最佳\n最好\n最低\n第一\n国家级\n顶级\n绝对\n永久\n百分百\n100%\n全网最低\n唯一\n首选\n冠军\n领导品牌\n完美\n万能\n极致\n史无前例\n空前\n绝无仅有\n王牌\n销量第一\n独家\n最低价\n底价\n零风险\n最\n永久免费\n免单\n点击有惊喜\n立即下载\n秒杀",
+    "reviewPrompt": "你是一位严格的微博营销文案评审专家。下面给你一条待评审的文案，以及它的素材（热点 + 商品）。\n\n请只输出一个 JSON 对象（不要任何额外文字、不要代码块包裹），结构如下：\n{\n  \"relevance\": 1,        // 热点关联度：1=生硬拼接，5=真借上了这个热点\n  \"materialFidelity\": 1, // 素材还原度：1=卖点/价格瞎编，5=用得准、无编造\n  \"appeal\": 1,           // 传播吸引力：1=没钩子没网感，5=让人想点开\n  \"naturalness\": 1,      // 语气自然度：1=一股机器味，5=像真人在发微博\n  \"comment\": \"一句话总评\"\n}\n\n评分要求：稳定、严格，不要人情分。维度之间允许有差距。",
+    "reworkPrompt": "你是一位严谨的文案校对员。下面给你一条「没通过的文案」和「具体没过的原因清单」。\n\n请严格按清单修改，只输出修正后的完整文案（不要解释、不要前缀、不要代码块）：\n- 违禁词：必须删掉或换成合规表述，绝不能再出现清单里点名的违禁词。\n- 编造价格：素材里没给的价格/折扣/销量一律删除或替换为素材真实金额；只能原样使用素材给出数字。\n- 字数：写完自己数一遍，超了就删（宁可少写一个卖点也不能超上限）；不够则在不违规前提下补一句。\n- 话题标签：补齐素材指定的标签，且总标签数不要过多。\n- 互动引导：结尾补一个互动提问或限时福利钩子。\n- 残留符号：去掉反引号、Markdown 标题/分隔线、【】括号等残留排版符号。\n\n其余合规的部分原样保留，不要擅改语气和卖点。",
+    "reworkMaxRounds": 3,
+    "concurrency": 3,
+    "repeats": 1,
+    "unitPrice": 0.01,
+    "model": "",
+    "reviewTemp": 0.2,
+    "reworkTemp": 0.2,
+    "simulate": false
+  }
+}

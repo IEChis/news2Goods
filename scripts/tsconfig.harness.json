@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2020",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
+    "noEmit": false,
+    "outDir": ".harness-build",
+    "types": ["node"]
+  },
+  "include": ["scripts/eval-harness.ts"]
+}

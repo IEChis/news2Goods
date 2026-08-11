@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>样例科技快讯</title>
+    <link>https://example.com/feed</link>
+    <description>用于测试「自定义 RSS 订阅源」的样例数据（本地 public/ 提供，同源可稳定抓取）</description>
+    <item>
+      <title>某新能源车企发布千公里续航电池，预售首日破五万订单</title>
+      <link>https://example.com/n1</link>
+      <description>该车企宣布新电池量产，主打长续航与安全，预售价公布后订单激增。</description>
+    </item>
+    <item>
+      <title>城市咖啡节本周末开幕，精品咖啡豆销量同比涨四成</title>
+      <link>https://example.com/n2</link>
+      <description>多地举办咖啡文化节，带动周边器具与咖啡豆消费，精品咖啡豆供不应求。</description>
+    </item>
+    <item>
+      <title>高温持续，清凉家电成今夏最热品类</title>
+      <link>https://example.com/n3</link>
+      <description>空调、制冰机、小风扇销量走高，网友热议消暑好物与居家清凉方案。</description>
+    </item>
+    <item>
+      <title>骑行热潮再起，城市绿道沿线运动装备店客流翻倍</title>
+      <link>https://example.com/n4</link>
+      <description>低碳出行受年轻人追捧，头盔、骑行服、智能码表成爆款。</description>
+    </item>
+  </channel>
+</rss>
