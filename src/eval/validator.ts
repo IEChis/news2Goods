@@ -29,10 +29,10 @@ export function extractHashtags(text: string): string[] {
   const m = text.match(/#([^\s#，。！？、,.\n\r]+)/g) || [];
   return m.map((s) => s.slice(1));
 }
-const EMOJI_RE =
+export const EMOJI_RE =
   /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{FE0F}\u{2764}\u{2728}\u{2705}\u{1F1E6}-\u{1F1FF}]/gu;
 
-function countEmoji(text: string): number {
+export function countEmoji(text: string): number {
   return (text.match(EMOJI_RE) || []).length;
 }
 

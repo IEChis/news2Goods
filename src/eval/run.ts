@@ -102,6 +102,7 @@ export async function runEval(opts: RunOptions): Promise<EvalRun> {
       styleRequirement: task.style.requirement,
       tone: styleTone,
       simulate: useSim,
+      llmCall: llmCall ?? undefined,
     });
     if (!useSim) costCalls += 1;
 
@@ -163,8 +164,8 @@ export async function runEval(opts: RunOptions): Promise<EvalRun> {
         results.push(r);
         opts.onCase?.(r);
       } catch (e) {
-        // 单条失败不应中断整轮，记录为空结果
-        results.push({
+        // 单条失败不应中断整轮，但失败条目也必须进明细（否则前端 live 永远为空、看不出问题）
+        const failed: CaseResult = {
           caseId: task.case.id,
           caseName: task.case.name,
           styleName: task.style.name,
@@ -177,7 +178,9 @@ export async function runEval(opts: RunOptions): Promise<EvalRun> {
           rework: null,
           humanVote: null,
           humanNote: "生成失败：" + (e as Error).message.slice(0, 60),
-        });
+        };
+        results.push(failed);
+        opts.onCase?.(failed);
       }
       done += 1;
       opts.onProgress?.({ done, total, current: task.case.name + " / " + task.style.name });

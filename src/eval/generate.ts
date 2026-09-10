@@ -1,7 +1,8 @@
 import type { EvalMaterial } from "./types";
-import { loadCopyConfig, assembleUserPrompt } from "../api/promptConfig";
-import { runCreateCopy } from "../api/coze";
+import { loadCopyConfig, assembleCopyMessages } from "../api/promptConfig";
 import type { Product } from "../types";
+
+type LLMCall = (messages: { role: string; content: string }[], temperature: number) => Promise<string>;
 
 export interface GenerateOpts {
   material: EvalMaterial;
@@ -9,27 +10,38 @@ export interface GenerateOpts {
   styleRequirement: string;
   tone: string;
   simulate: boolean;
+  /** 真实模型调用（由 runEval 注入，指向 /api/llm）；不传且非 simulate 时抛错 */
+  llmCall?: LLMCall;
 }
 
-/** 真实生成：走 Coze createCopy 工作流（与工作台 Step4 同链路） */
+/** 真实生成：走「接入的大模型」（/api/llm，OpenAI 兼容），取代原 Coze createCopy 工作流 */
 async function realGenerate(o: GenerateOpts): Promise<string> {
   const cfg = await loadCopyConfig();
-  const userPrompt = assembleUserPrompt({
+  const { system, user } = assembleCopyMessages({
     news: o.material.news,
-    products: o.material.products,
+    products: o.material.products as unknown as Product[],
     tone: o.tone,
     styleName: o.styleName,
     styleRequirement: o.styleRequirement,
     prompt: cfg.prompt,
   });
-  const news = {
-    id: "eval",
-    title: o.material.news.title,
-    summary: o.material.news.summary || "",
-    keywords: o.material.news.keywords || [],
-  } as any;
-  const res = await runCreateCopy(news, o.material.products as unknown as Product[], userPrompt);
-  return res && res[0] && res[0].trim() ? res[0].trim() : "";
+  if (!o.llmCall) {
+    throw new Error("未注入大模型调用（请检查「模型接入」baseURL / apiKey / model 是否配置）");
+  }
+  const text = await o.llmCall(
+    [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    0.7
+  );
+  if (!text.trim()) throw new Error("大模型返回为空");
+  // 多版本：按 \n\n 切分，取首段作为该用例文案
+  const parts = text
+    .split(/\n\s*\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return parts.length ? parts[0] : text.trim();
 }
 
 /** 模拟生成：确定性产出一条基本合规的文案（离线 / 无密钥时用） */

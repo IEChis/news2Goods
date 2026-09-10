@@ -187,7 +187,7 @@ export default function Step4Create() {
               <Sparkles className="w-4 h-4 text-brand-500" /> 微博文案生成器
             </h2>
             <span className={`text-[11px] px-2 h-5 rounded flex items-center ${cozeLoaded ? "text-brand-600 bg-brand-50" : "text-gray-400 bg-gray-100"}`}>
-              {cozeLoaded ? "Coze 实时" : "演示文案"}
+              {cozeLoaded ? "大模型实时" : "演示文案"}
             </span>
           </div>
             <p className="text-[12.5px] text-gray-500 mb-3">已为你准备热点与商品上下文，按创作风格生成多个候选版本供挑选</p>
@@ -240,7 +240,7 @@ export default function Step4Create() {
           >
             {cozeLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> 正在按风格调用 Coze 生成中…
+                <Loader2 className="w-4 h-4 animate-spin" /> 正在调用大模型生成中…
               </>
             ) : (
               <>

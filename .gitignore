@@ -43,3 +43,8 @@ server-config.json
 .harness-build2/
 scripts/debug-eval.cjs
 
+# 本地诊断截图与临时调试文件（不入仓库）
+_local/
+_diag-*.png
+*.diag.png
+

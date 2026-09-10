@@ -99,11 +99,10 @@ export function renderTemplate(tpl: string, data: Record<string, unknown>): stri
 }
 
 /**
- * 拼装最终下发给模型的 user_prompt：
- *   system + "\n\n" + 渲染后的 template（+ 可选的补充要求）
- * 其中 template 的 {{product_list}} 是“容器占位符”，内部逐件按 itemFormat 渲染后再拼接（嵌套）。
+ * 渲染素材 + 模板，产出「模型要看到的 user 内容」（不含 system）。
+ * template 的 {{product_list}} 是“容器占位符”，内部逐件按 itemFormat 渲染后再拼接（嵌套）。
  */
-export function assembleUserPrompt(opts: {
+function buildMaterial(opts: {
   news: { title: string; summary?: string; keywords?: string[] };
   products: Array<{
     name: string;
@@ -153,7 +152,55 @@ export function assembleUserPrompt(opts: {
     material += "\n\n补充要求：" + extraRequirement.trim();
   }
 
-  return (prompt.system ? prompt.system + "\n\n" : "") + material;
+  return material;
+}
+
+/**
+ * 拼装最终下发给模型的 user_prompt（system + "\n\n" + 渲染后的 template）。
+ * 兼容旧调用方（Coze / 单段字符串场景）。
+ */
+export function assembleUserPrompt(opts: {
+  news: { title: string; summary?: string; keywords?: string[] };
+  products: Array<{
+    name: string;
+    price?: number | string;
+    category?: string;
+    selling?: string[];
+    month?: number | string;
+    detail?: string;
+  }>;
+  tone?: string;
+  styleName?: string;
+  styleRequirement?: string;
+  extraRequirement?: string;
+  prompt: PromptConfig;
+}): string {
+  const material = buildMaterial(opts);
+  return (opts.prompt.system ? opts.prompt.system + "\n\n" : "") + material;
+}
+
+/**
+ * 拆成标准 chat 消息：system 单独成段、user 为渲染后的素材模板。
+ * 供「接入的大模型」（/api/llm，OpenAI 兼容）使用，替代 Coze createCopy 工作流。
+ */
+export function assembleCopyMessages(opts: {
+  news: { title: string; summary?: string; keywords?: string[] };
+  products: Array<{
+    name: string;
+    price?: number | string;
+    category?: string;
+    selling?: string[];
+    month?: number | string;
+    detail?: string;
+  }>;
+  tone?: string;
+  styleName?: string;
+  styleRequirement?: string;
+  extraRequirement?: string;
+  prompt: PromptConfig;
+}): { system: string; user: string } {
+  const material = buildMaterial(opts);
+  return { system: opts.prompt.system || "", user: material };
 }
 
 /** 读取当前生效的「完整文案配置」：本机 → 服务端 → 内置默认 */

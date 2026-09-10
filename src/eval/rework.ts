@@ -1,5 +1,5 @@
 import type { CheckResult, EvalConfig, EvalMaterial, ReworkResult, ReworkRound } from "./types";
-import { extractAmounts, getFixableFailures } from "./validator";
+import { EMOJI_RE, countEmoji, extractAmounts, getFixableFailures } from "./validator";
 
 export type ValidateFn = (text: string) => import("./types").ValidationResult;
 export type RewriteFn = (
@@ -101,6 +101,14 @@ export function simulateRewriter(
   if (keys.has("hashtag")) {
     const required = (material.requiredTags || []).map(stripHash).filter(Boolean);
     for (const t of required) if (!out.includes("#" + t)) out = out + " #" + t;
+  }
+
+  // emoji 数量：超上限则删掉多余的，不足则补齐
+  if (keys.has("emoji")) {
+    let kept = 0;
+    out = out.replace(EMOJI_RE, (m) => (kept++ < config.emojiMax ? m : ""));
+    while (countEmoji(out) < config.emojiMin) out += "✨";
+    out = out.replace(/\s{2,}/g, " ").trim();
   }
 
   // 互动引导

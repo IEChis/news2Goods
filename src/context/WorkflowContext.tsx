@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from "react";
 import type { WorkflowState, WorkflowAction, NewsItem, Product, CopyCandidate } from "../types";
 import { mockNews, mockProducts } from "../data/mock";
-import { runGetNews, runMatchGoods, runCreateCopy, runMatchByLLM, parseKeywords, searchProductsByKeywords } from "../api/coze";
+import { runGetNews, runMatchByLLM, parseKeywords, searchProductsByKeywords } from "../api/coze";
+import { runCreateCopyByLLM, type CopyLLM } from "../api/llm";
 import { runFetchNews } from "../api/news";
 import { loadCopyConfig, assembleUserPrompt, loadMatchConfig, type CreativeStyle, type CopyConfig, type MatchMode } from "../api/promptConfig";
 import { loadProducts } from "../api/products";
@@ -331,36 +332,27 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       const lib = await loadProducts();
       const pool = lib.length ? lib : mockProducts;
       setCozeLibraryIds(new Set(pool.map((p) => p.id)));
-      if (cfg.mode === "llm") {
-        const useSim = cfg.llm.simulate || !cfg.llm.apiKey;
-        let keywords: string[] = [];
-        if (useSim) {
-          // 本地兜底：无密钥 / 勾选模拟时，用新闻自带 keywords 作为检索词
-          keywords = news.keywords && news.keywords.length ? news.keywords : [];
-        } else {
-          const raw = await runMatchByLLM(news, cfg.prompt, cfg.llm);
-          keywords = parseKeywords(raw);
-          if (!keywords.length) keywords = news.keywords || []; // LLM 说"没有对应内容"时回退新闻关键词
-        }
-        const found = searchProductsByKeywords(keywords, pool);
-        setCozeProducts(found);
-        setMatchKeywords(keywords);
-        setMatchMode("llm");
-        setMatchGoodsLoaded(true);
-        setCozeLoaded(true);
-        showToast(
-          found.length ? "success" : "info",
-          `大模型匹配：${keywords.join("、") || "—"} → 命中 ${found.length} 件`
-        );
+      // 商品匹配：统一走「接入的大模型」（不再使用 Coze 工作流）
+      const useSim = cfg.llm.simulate || !cfg.llm.apiKey;
+      let keywords: string[] = [];
+      if (useSim) {
+        // 本地兜底：无密钥 / 勾选模拟时，用新闻自带 keywords 作为检索词
+        keywords = news.keywords && news.keywords.length ? news.keywords : [];
       } else {
-        const products = await runMatchGoods(news, q);
-        setCozeProducts(products);
-        setMatchMode("coze");
-        setMatchKeywords([]);
-        setMatchGoodsLoaded(true);
-        setCozeLoaded(true);
-        showToast("success", `matchGoods 返回 ${products.length} 件商品`);
+        const raw = await runMatchByLLM(news, cfg.prompt, cfg.llm);
+        keywords = parseKeywords(raw);
+        if (!keywords.length) keywords = news.keywords || []; // LLM 说"没有对应内容"时回退新闻关键词
       }
+      const found = searchProductsByKeywords(keywords, pool);
+      setCozeProducts(found);
+      setMatchKeywords(keywords);
+      setMatchMode("llm");
+      setMatchGoodsLoaded(true);
+      setCozeLoaded(true);
+      showToast(
+        found.length ? "success" : "info",
+        `大模型匹配：${keywords.join("、") || "—"} → 命中 ${found.length} 件`
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       showToast("error", `匹配失败：${msg.slice(0, 80)}`);
@@ -375,15 +367,23 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
   const fetchCreateCopy = useCallback(async (news: NewsItem, products: Product[], userPrompt = "") => {
     setCozeLoading(true);
     try {
-      const copies = await runCreateCopy(news, products, userPrompt);
-      if (copies.length) {
-        dispatch({ type: "SET_COPY_LIST", payload: copies });
+      const mc = await loadMatchConfig();
+      const llm: CopyLLM = { baseURL: mc.llm.baseURL, apiKey: mc.llm.apiKey, model: mc.llm.model };
+      const cfg = await loadCopyConfig();
+      const res = await runCreateCopyByLLM(
+        { title: news.title, summary: news.summary, keywords: news.keywords },
+        products,
+        { tone: "", styleName: "", styleRequirement: "", extraRequirement: userPrompt, prompt: cfg.prompt },
+        llm
+      );
+      if (res.length) {
+        dispatch({ type: "SET_COPY_LIST", payload: res });
         setCozeLoaded(true);
-        showToast("success", `createCopy 生成 ${copies.length} 条文案`);
+        showToast("success", `大模型生成 ${res.length} 条文案`);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      showToast("error", `createCopy 失败：${msg.slice(0, 80)}`);
+      showToast("error", `生成失败：${msg.slice(0, 80)}`);
       console.error("[fetchCreateCopy]", e);
     } finally {
       setCozeLoading(false);
@@ -409,20 +409,18 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        const mc = await loadMatchConfig();
+        const llm: CopyLLM = { baseURL: mc.llm.baseURL, apiKey: mc.llm.apiKey, model: mc.llm.model };
         const candidates: CopyCandidate[] = [];
         for (let i = 0; i < styles.length; i++) {
           const st = styles[i];
-          const userPrompt = assembleUserPrompt({
-            news,
+          // 每个风格独立调用一次「接入的大模型」；模型按“单版本”指令产出 1 条，取首段作为该风格候选
+          const res = await runCreateCopyByLLM(
+            { title: news.title, summary: news.summary, keywords: news.keywords },
             products,
-            tone,
-            styleName: st.name,
-            styleRequirement: st.requirement,
-            extraRequirement: extra,
-            prompt: cfg.prompt,
-          });
-          // 每个风格独立调用一次；模型按“单版本”指令产出 1 条，取首段作为该风格候选
-          const res = await runCreateCopy(news, products, userPrompt);
+            { tone, styleName: st.name, styleRequirement: st.requirement, extraRequirement: extra, prompt: cfg.prompt },
+            llm
+          );
           const text = (res && res[0] && res[0].trim()) ? res[0].trim() : "";
           candidates.push({ style: st.name, text });
         }
@@ -430,7 +428,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
         if (candidates.length) {
           dispatch({ type: "SET_COPY_CANDIDATES", payload: candidates });
           setCozeLoaded(true);
-          showToast("success", `已按 ${candidates.length} 个创作风格生成候选版本`);
+          showToast("success", `已按 ${candidates.length} 个创作风格调用大模型生成候选版本`);
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
