@@ -107,10 +107,10 @@ function llmRelay() {
   }
 }
 
-// 运营后台配置读写：GET 读 server-config.json（缺字段自动补默认，避免误删段落后工作台崩）；
-// POST 写入前先备份上一版到 server-config.backup.json，并校验关键内容非空（防误操作清空库）。
-const ADMIN_CONFIG_PATH = path.resolve(import.meta.dirname, "admin", "server-config.json")
-const ADMIN_CONFIG_BACKUP = path.resolve(import.meta.dirname, "admin", "server-config.backup.json")
+// 运营后台静态外壳位于 public/admin/（随 vite build 原样拷入 dist/admin/，Vercel 等静态托管可直接访问 /admin/index.html）；
+// 配置文件也随目录迁入 public/admin/，dev 中间件读写走新路径。
+const ADMIN_CONFIG_PATH = path.resolve(import.meta.dirname, "public", "admin", "server-config.json")
+const ADMIN_CONFIG_BACKUP = path.resolve(import.meta.dirname, "public", "admin", "server-config.backup.json")
 
 // 后台配置的内置默认值（与服务端/前端的 BUILTIN_DEFAULTS 对齐，仅用于「读时补默认」）
 /* 新闻抓取来源（可配置，真实抓取，替代旧版写死来源）。

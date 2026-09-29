@@ -52,7 +52,7 @@ npm run dev      # 启动开发服务器
 └──────────────┘
 ```
 
-- **工作台** 与 **后台** 共享同一套配置（服务端权威的 `admin/server-config.json`）。
+- **工作台** 与 **后台** 共享同一套配置（服务端权威的 `public/admin/server-config.json`）。
 - Vite 在开发期充当「后端」：`vite.config.ts` 中注册了若干 API 中间件，负责兜底转发大模型请求、托管新闻抓取、并提供配置读写接口。**大模型（LLM）的 `apiKey` 由运营在后台「模型接入」（或工作台「模型设置」）填写并存于浏览器 `localStorage`，由前端直连目标端点**（dev 时若被 CORS 拦截再回退服务端 `/api/llm` 代理），因此不再依赖本机 `.env`。
 - 改动 `vite.config.ts` 后**必须重启 dev server** 才生效。
 
@@ -63,7 +63,7 @@ npm run dev      # 启动开发服务器
 | 层级 | 来源 | 优先级 |
 | --- | --- | --- |
 | 本机浏览器 | `localStorage`（`hg_admin_config_v1`） | 最高（离线镜像） |
-| 服务端 | `admin/server-config.json`（经 `/api/admin-config`） | 中 |
+| 服务端 | `public/admin/server-config.json`（经 `/api/admin-config`） | 中 |
 | 内置默认 | 代码常量（`BUILTIN_DEFAULTS` / `ADMIN_DEFAULTS` / `BUILTIN_*`） | 兜底 |
 
 - 后台「保存」会同时写服务端并镜像到本机；顶栏徽章标明当前实际生效来源：**紫=服务端 / 琥珀=本机 / 灰=内置默认**。
