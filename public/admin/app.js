@@ -63,9 +63,11 @@
        apiKey 不在内置默认中预填（避免泄漏到前端包 / git 历史）；真实密钥在后台「模型接入」填写，
        存本机 localStorage；或由 dev 服务器从本机 .env 的 AIGW_API_KEY 兜底。 */
     llm: {
-      provider: 'OpenAI 兼容',
-      baseURL: 'https://aigw.yuexiuproperty.cn/v1',
-      model: 'deepseek-v4-flash',
+      /* 内置默认全部留空：不预填地址 / 模型 / 密钥，由运营在「模型接入」自行填写
+         （apiKey 任何时候都不进内置默认，避免泄漏到前端包 / git 历史）。 */
+      provider: '',
+      baseURL: '',
+      model: '',
       apiKey: '',
       temperature: 0.7
     },

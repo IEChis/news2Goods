@@ -28,10 +28,10 @@
     "促销导向",
     "互动话题"
   ],
-  "llm": {
+    "llm": {
     "provider": "OpenAI 兼容",
-    "baseURL": "https://aigw.yuexiuproperty.cn/v1",
-    "model": "deepseek-v4-flash",
+    "baseURL": "https://your-llm-provider.example.com/v1",
+    "model": "your-model-name",
     "apiKey": "",
     "temperature": 0.7
   },

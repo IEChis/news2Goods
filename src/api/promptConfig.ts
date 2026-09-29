@@ -348,12 +348,12 @@ export const BUILTIN_MATCH_PROMPT = `# 角色：商品匹配师
 - 优先输出能在商品库中被检索到的品类或商品名。
 - 如果确实对应不出任何商品，则只输出：没有对应内容`;
 
-// 注意：apiKey 不再写进内置默认值（避免泄漏到前端包 / git 历史）。
-// 真实密钥来源：① 本机 .env 的 AIGW_API_KEY（dev 时 /api/llm 服务端兜底）；
-//            ② 运营在后台「模型接入」填写并存于本机 localStorage（前端传来优先）。
+// 注意：内置默认不预填 baseURL / model / apiKey（避免把内网网关地址带进前端包，
+// 也保证新用户看到的是留空待填的表单）。真实配置来源：用户在「模型设置 / 模型接入」
+// 填写并存于本机 localStorage；未配置时业务层走离线兜底。
 export const BUILTIN_LLM = {
-  baseURL: "https://aigw.yuexiuproperty.cn/v1",
-  model: "deepseek-v4-flash",
+  baseURL: "",
+  model: "",
   apiKey: "",
 };
 

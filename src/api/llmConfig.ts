@@ -28,12 +28,13 @@ export interface LLMConfig {
   temperature: number;
 }
 
-/** 内置默认（与 admin 的 BUILTIN_DEFAULTS.llm 保持一致；apiKey 留空，避免泄漏到前端包 / git） */
+/** 内置默认（与 admin 的 BUILTIN_DEFAULTS.llm 保持一致）：全部留空，
+ *  不预填任何地址 / 模型 / 密钥——由用户在「模型设置」自行填写（未配置时走离线兜底）。 */
 export const BUILTIN_LLM_CONFIG: LLMConfig = {
-  provider: "OpenAI 兼容",
-  baseURL: "https://aigw.yuexiuproperty.cn/v1",
+  provider: "",
+  baseURL: "",
   apiKey: "",
-  model: "deepseek-v4-flash",
+  model: "",
   temperature: 0.7,
 };
 
