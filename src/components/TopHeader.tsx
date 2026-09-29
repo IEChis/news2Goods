@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Search, Sparkles, Loader2, Settings, RotateCcw } from "lucide-react";
 import { useWorkflow } from "../context/WorkflowContext";
+import ModelSettingsModal from "./ModelSettingsModal";
+import { getLLMConfig, isConfigured, onLLMConfigChange } from "../api/llmConfig";
 
 /** 运营后台入口路径——指向独立 admin 外壳（同一标签页内切换，避免反复打开冗余标签页） */
 const ADMIN_PATH = "/admin/index.html";
@@ -9,6 +11,18 @@ export default function TopHeader() {
   const { setCurrentStep, fetchGetNews, cozeLoading, reset } = useWorkflow();
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [modelLabel, setModelLabel] = useState<string>("未配置模型");
+
+  // 当前模型徽标：订阅统一配置变更，跨标签页同步
+  useEffect(() => {
+    const sync = () => {
+      const c = getLLMConfig();
+      setModelLabel(isConfigured() ? c.model : "未配置模型");
+    };
+    sync();
+    return onLLMConfigChange(sync);
+  }, []);
 
   // ⌘K / Ctrl+K 全局聚焦搜索框
   useEffect(() => {
@@ -33,6 +47,7 @@ export default function TopHeader() {
   };
 
   return (
+    <>
     <header className="h-16 bg-white border-b border-gray-100 flex items-center px-6 gap-6">
       {/* Logo + 名称 */}
       <div className="flex items-center gap-3 shrink-0">
@@ -104,6 +119,26 @@ export default function TopHeader() {
 
         <div className="w-px h-6 bg-gray-100" />
 
+        {/* 当前模型状态 + 模型设置入口 */}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={`text-[11px] px-2 h-5 rounded-full inline-flex items-center gap-1 ${
+            modelLabel === "未配置模型" ? "text-amber-600 bg-amber-50" : "text-brand-600 bg-brand-50"
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${modelLabel === "未配置模型" ? "bg-amber-500" : "bg-emerald-500"}`} />
+            {modelLabel}
+          </span>
+          <button
+            onClick={() => setShowSettings(true)}
+            title="模型设置（配置大模型接入）"
+            className="group inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[12.5px] text-gray-500 hover:text-brand-700 hover:bg-brand-50 transition-colors"
+          >
+            <Settings className="w-[15px] h-[15px] group-hover:rotate-45 transition-transform duration-300" strokeWidth={1.8} />
+            <span>模型设置</span>
+          </button>
+        </div>
+
+        <div className="w-px h-6 bg-gray-100" />
+
         {/* 运营后台入口 —— 独立外壳，同一标签页内切换，避免反复打开冗余标签页 */}
         <a
           href={ADMIN_PATH}
@@ -130,5 +165,7 @@ export default function TopHeader() {
         </div>
       </div>
     </header>
+      {showSettings && <ModelSettingsModal open={showSettings} onClose={() => setShowSettings(false)} />}
+    </>
   );
 }

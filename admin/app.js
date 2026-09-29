@@ -9,7 +9,6 @@
 
   /* ---------------- 常量 ---------------- */
   var LS_KEY = 'hg_admin_config_v1';
-  var LS_LLM_KEY = 'hg_admin_llm_v1';
   var SERVER_URL = './server-config.json';
   var WORKBENCH_URL = 'http://localhost:5173/';
   // 是否由 HTTP 提供（经 vite dev server）：是 → 可写服务端；否（file://）→ 只能写本机
@@ -22,12 +21,7 @@
     brandColor: '#7c3aed',
     defaultPrompt: '语气有网感，突出商品卖点，加入互动与福利钩子。',
     maxNews: 10,
-    workflows: {
-      getNews:    { id: '<COZE_WORKFLOW_ID>', label: '抓取新闻热点' },
-      matchGoods: { id: '<COZE_WORKFLOW_ID>', label: '匹配商品' },
-      createCopy: { id: '<COZE_WORKFLOW_ID>', label: '生成营销文案' }
-    },
-    /* 下发给模型（Coze createCopy 的 user_prompt）的指令与模板——运营在后台可调，无需改代码 */
+    /* 下发给模型的指令与模板——运营在后台可调，无需改代码 */
     prompt: {
       system:
 '你是一位资深的微博营销文案专家，擅长把热点新闻与商品结合，产出高转化率的微博文案。\n' +
@@ -58,26 +52,27 @@
       itemFormat:
 '- 商品：{{product_name}}｜价格：¥{{product_price}}｜分类：{{product_category}}｜卖点：{{product_selling}}'
     },
-    /* 创作风格：每个风格独立跑一次 createCopy，产出 1 个候选版本；至少保留 1 个（删到 0 会被拦住） */
+    /* 创作风格：每个风格独立产出 1 个候选版本；至少保留 1 个（删到 0 会被拦住） */
     creativeStyles: [
       { name: '热点借势', requirement: '先接住热点情绪再自然过渡到商品，重体验感。' },
       { name: '促销导向', requirement: '突出价格钩子和紧迫感，重转化。' }
     ],
     /* 语调预设：工作台「主打语调」下拉的可选项；选中后作为素材的一部分传给模型 */
     tonePresets: ['热点借势', '促销导向', '互动话题'],
-    /* 大模型接入设置：供 matchGoods=llm 模式与「试运行」使用。
-       apiKey 不再预填真实密钥（避免泄漏到前端包 / git 历史）；真实密钥可在后台「模型接入」填写
-       （存本机 localStorage），或由 dev 服务器从本机 .env 的 AIGW_API_KEY 兜底。 */
+    /* 大模型接入设置（单一配置源）：工作台与后台共用同一份 llm 配置。
+       apiKey 不在内置默认中预填（避免泄漏到前端包 / git 历史）；真实密钥在后台「模型接入」填写，
+       存本机 localStorage；或由 dev 服务器从本机 .env 的 AIGW_API_KEY 兜底。 */
     llm: {
-      simulate: false,
+      provider: 'OpenAI 兼容',
       baseURL: 'https://aigw.yuexiuproperty.cn/v1',
       model: 'deepseek-v4-flash',
-      apiKey: ''
+      apiKey: '',
+      temperature: 0.7
     },
-    /* 商品匹配（matchGoods）配置：可切换「Coze 工作流」或「大模型」两种模式。
-       大模型模式下本 prompt 由 {{title}}/{{brief}} 填充后发给 LLM，产出商品关键词 → 前端在商品库里检索推荐。 */
+    /* 商品匹配（matchGoods）配置：统一走「大模型 LLM」模式，本 prompt 由 {{title}}/{{brief}}
+        填充后发给 LLM，产出商品关键词 → 前端在商品库里检索推荐。 */
     matchGoods: {
-      mode: 'coze',
+      mode: 'llm',
       prompt:
 '# 角色：商品匹配师\n' +
 '你是一名专业的电商商品匹配师，擅长从热点新闻中识别出用户可能产生的消费需求，并将其转化为可在商品库中检索的关键词。\n' +
@@ -240,7 +235,7 @@
 
   var ICON = {
     general: '<svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.4" fill="#fff"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4" fill="#fff"/></svg>',
-    workflows: '<svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M6 8.4 L12 15.6 M18 8.4 L12 15.6"/></svg>',
+    ai: '<svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="M12 18v3"/><path d="M5 12H2"/><path d="M22 12h-3"/><circle cx="12" cy="12" r="4"/></svg>',
     datasource: '<svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6 v6 c0 1.7 3.1 3 7 3 s7 -1.3 7 -3 V6"/><path d="M5 12 v6 c0 1.7 3.1 3 7 3 s7 -1.3 7 -3 v-6"/></svg>',
     dot: '<svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="9" y="9" width="6" height="6" rx="1.5"/></svg>',
     pencil: '<svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
@@ -1365,9 +1360,9 @@
     return [v];
   }
 
-  // 把上游错误 / 网络错误翻译成人话（兼容 OpenAI 风格 {error} 与 Coze 风格 {code,msg}）
+  // 把上游 / 网络错误翻译成人话（兼容 OpenAI 风格 {error} 与 {code,msg} 两种返回）
   function classifyError(status, data) {
-    // Coze 风格：HTTP 200 但 body 带 {code, msg}，code !== 0 表示错误
+    // 上游返回带 code 字段（如 code !== 0 表示错误）
     if (data && typeof data.code === 'number' && data.code !== 0) {
       var cm = String(data.msg || '').toLowerCase();
       if (/login|token|auth|unauthor|invalid|expired|权限|校验|验证/i.test(cm) || /^70/.test(String(data.code))) {
@@ -1482,9 +1477,7 @@
     setText('cnt-material', '字数 ' + countChars(payload.messages[1].content));
   }
 
-  // 试运行：用当前模板真调一次 Coze createCopy 工作流（或本地模拟），结果仅调试不写回
-  // 注意：Coze Chat API（/api/v1/chat/completions）不认工作流的 PAT，会 700012006；
-  // 工作流调用（/v1/workflow/run）才认这把 PAT，所以走 createCopy 端到端验证最直接。
+  // 试运行：用当前模板真调一次大模型（或本地无密钥时走模拟），结果仅调试不写回
   function runTrial() {
     var p = state.working.prompt || {};
     var llm = state.working.llm || {};
@@ -1498,7 +1491,7 @@
     var payload = buildPayload(p.system, p.template, p.itemFormat, currentSample.news, currentSample.products, {
       tone: tone, styleName: st.name, styleRequirement: st.requirement
     });
-    var effectiveSim = !!llm.simulate;
+    var effectiveSim = !llm.apiKey;
     if (effectiveSim) {
       out.innerHTML = trialHTML({
         sim: true,
@@ -1510,87 +1503,50 @@
       bindVerTabs(out);
       return;
     }
-    out.innerHTML = '<div class="trial-loading">调用中…（Coze createCopy 工作流通常需数秒至数十秒）</div>';
+    out.innerHTML = '<div class="trial-loading">调用中…（大模型通常需数秒至数十秒）</div>';
     var t0 = Date.now();
-    // 组装 Coze createCopy 入参：把 sample 字段名转成工作流要求的 schema
-    //   news:{title,brief,url}  products:[{product,price,classification,month,detail}]  user_prompt:String
-    var newsObj = {
-      title: currentSample.news.title,
-      brief: currentSample.news.summary,
-      url: currentSample.news.url || ''
-    };
-    var productsArr = (currentSample.products || []).map(function (pr) {
-      return {
-        product: pr.name,
-        price: typeof pr.price === 'number' ? pr.price : (parseFloat(pr.price) || 0),
-        classification: pr.category || '',
-        month: typeof pr.month === 'number' ? pr.month : (parseInt(pr.month, 10) || 0),
-        detail: pr.detail || ''
-      };
-    });
-    fetch('/api/coze-trial', {
+    fetch('/api/llm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        workflow_id: '<COZE_WORKFLOW_ID>',
-        parameters: {
-          news: newsObj,
-          products: productsArr,
-          user_prompt: payload.full
-        }
+        baseURL: llm.baseURL,
+        apiKey: llm.apiKey,
+        model: llm.model,
+        temperature: (typeof llm.temperature === 'number' ? llm.temperature : 0.7),
+        messages: [{ role: 'user', content: payload.full }]
       })
     })
       .then(function (r) { return r.text().then(function (t) { return { status: r.status, text: t }; }); })
       .then(function (res) {
         var ms = Date.now() - t0;
         var data; try { data = JSON.parse(res.text); } catch (e) { data = { raw: res.text }; }
-        if (res.status >= 200 && res.status < 300 && data && data.code === 0) {
-          // 解析 output_wb：data.data 可能是字符串、对象、或 JSON 字符串
-          var raw = data.data;
-          var text = '';
-          if (typeof raw === 'string') {
-            try {
-              var parsed = JSON.parse(raw);
-              if (parsed && typeof parsed === 'object') {
-                text = parsed.output_wb || parsed.output || parsed.text || JSON.stringify(parsed);
-              } else {
-                text = String(parsed);
-              }
-            } catch (e) {
-              text = raw;
-            }
-          } else if (raw && typeof raw === 'object') {
-            text = raw.output_wb || raw.output || raw.text || JSON.stringify(raw);
-          } else {
-            text = String(raw == null ? '' : raw);
-          }
-          // 切分多版本（与工作台 Step4 规则一致：按 \n\n 严格分隔）
-          var versions = String(text).split(/\n\s*\n+/).map(function (s) { return s.trim(); }).filter(Boolean);
-          if (versions.length === 0) versions = [String(text)];
-          out.innerHTML = trialHTML({
-            sim: false,
-            versions: versions,
-            model: 'coze（Coze createCopy 工作流）',
-            method: '服务端代理（/api/coze-trial → Coze /v1/workflow/run）',
-            time: ms + ' ms',
-            tokens: '—（工作流不直接返回 tokens）'
-          });
-          bindVerTabs(out);
+        var text = '';
+        if (data && data.choices && Array.isArray(data.choices) && data.choices[0] && data.choices[0].message) {
+          text = data.choices[0].message.content || '';
+        } else if (typeof data === 'string') {
+          text = data;
         } else {
-          out.innerHTML = trialHTML({
-            error: classifyError(res.status, data),
-            model: 'coze（Coze createCopy 工作流）',
-            method: '服务端代理（/api/coze-trial → Coze /v1/workflow/run）',
-            time: ms + ' ms'
-          });
+          text = res.text;
         }
+        // 切分多版本（与工作台 Step4 规则一致：按 \n\s*\n+ 严格分隔）
+        var versions = String(text).split(/\n\s*\n+/).map(function (s) { return s.trim(); }).filter(Boolean);
+        if (versions.length === 0) versions = [String(text)];
+        out.innerHTML = trialHTML({
+          sim: false,
+          versions: versions,
+          model: llm.model || '大模型',
+          method: '服务端代理（/api/llm → OpenAI 兼容端点）',
+          time: ms + ' ms',
+          tokens: '—（由网关返回，此处不解析）'
+        });
+        bindVerTabs(out);
       })
       .catch(function (err) {
         var ms = Date.now() - t0;
         out.innerHTML = trialHTML({
           error: classifyError(0, { error: { type: 'network', message: err && err.message ? err.message : String(err) } }),
-          model: 'coze（Coze createCopy 工作流）',
-          method: '服务端代理（/api/coze-trial → Coze /v1/workflow/run）',
+          model: llm.model || '大模型',
+          method: '服务端代理（/api/llm → OpenAI 兼容端点）',
           time: ms + ' ms'
         });
       });
@@ -1613,7 +1569,7 @@
     if (!prompt.trim()) { toast('匹配提示词为空'); return; }
     var messages = [{ role: 'user', content: prompt }];
 
-    var effectiveSim = !!llm.simulate || !llm.apiKey;
+    var effectiveSim = !llm.apiKey;
     if (effectiveSim) {
       out.innerHTML = '<div class="trial-loading">本地模拟：无密钥 / 已勾选模拟，返回示例关键词</div>' +
         '<pre class="code">关键词示例：清凉家电，空调，风扇，降温，饮品</pre>';
@@ -1648,6 +1604,47 @@
       });
   }
 
+  // 「模型接入」页：测试连接（用当前 llm 配置真调一次 /api/llm）
+  function testLLMConnection() {
+    var llm = state.working.llm || {};
+    var out = document.getElementById('llm-test-out');
+    if (!out) return;
+    if (!llm.baseURL || !llm.apiKey || !llm.model) {
+      out.innerHTML = '<div class="trial-loading" style="color:#b91c1c">请先填写 Base URL / API Key / 模型名</div>';
+      return;
+    }
+    out.innerHTML = '<div class="trial-loading">连接测试中…（大模型通常需数秒）</div>';
+    var t0 = Date.now();
+    fetch('/api/llm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        baseURL: llm.baseURL,
+        apiKey: llm.apiKey,
+        model: llm.model,
+        temperature: (typeof llm.temperature === 'number' ? llm.temperature : 0.7),
+        messages: [{ role: 'user', content: 'ping，请只回复 ok' }]
+      })
+    })
+      .then(function (r) { return r.text().then(function (t) { return { status: r.status, text: t }; }); })
+      .then(function (res) {
+        var ms = Date.now() - t0;
+        if (res.status >= 200 && res.status < 300) {
+          out.innerHTML = '<div class="trial-loading" style="color:#15803d">✅ 连接成功（' + ms + ' ms）' +
+            '<pre class="code" style="margin-top:8px">' + esc((res.text || '').slice(0, 400)) + '</pre></div>';
+        } else {
+          out.innerHTML = '<div class="trial-loading" style="color:#b91c1c">❌ 连接失败（HTTP ' + res.status + '）' +
+            '<pre class="code" style="margin-top:8px">' + esc(classifyError(res.status, safeParse(res.text)) + ' | ' + (res.text || '').slice(0, 300)) + '</pre></div>';
+        }
+      })
+      .catch(function (err) {
+        var ms = Date.now() - t0;
+        out.innerHTML = '<div class="trial-loading" style="color:#b91c1c">❌ 连接失败（' + ms + ' ms）：' +
+          esc(err && err.message ? err.message : String(err)) + '</div>';
+      });
+  }
+  function safeParse(s) { try { return JSON.parse(s); } catch (e) { return {}; } }
+
   // prompts 页渲染后：绑定示例素材下拉 + 试运行按钮 + 首屏预览
   function initPromptsPage() {
     var sel = document.getElementById('sampleSel');
@@ -1665,15 +1662,7 @@
   }
 
   // 把本机单独保存的 llm（含密钥）注入到工作状态，确保服务端模式下刷新后仍保留
-  function injectLocalLLM() {
-    try {
-      var raw = localStorage.getItem(LS_LLM_KEY);
-      if (raw) {
-        var llm = JSON.parse(raw);
-        state.working.llm = Object.assign({}, state.working.llm, llm);
-      }
-    } catch (e) { /* 忽略 */ }
-  }
+
 
   /* ---------------- 三级配置读取 ---------------- */
   function readLocal() {
@@ -1695,11 +1684,7 @@
     out.brandColor = (typeof c.brandColor === 'string' && c.brandColor.trim()) ? c.brandColor : BUILTIN_DEFAULTS.brandColor;
     out.defaultPrompt = (typeof c.defaultPrompt === 'string') ? c.defaultPrompt : BUILTIN_DEFAULTS.defaultPrompt;
     out.maxNews = (typeof c.maxNews === 'number') ? c.maxNews : BUILTIN_DEFAULTS.maxNews;
-    out.workflows = (c.workflows && typeof c.workflows === 'object' && !Array.isArray(c.workflows))
-      ? c.workflows : deepClone(BUILTIN_DEFAULTS.workflows);
-    ['getNews', 'matchGoods', 'createCopy'].forEach(function (k) {
-      if (!out.workflows[k] || typeof out.workflows[k] !== 'object') out.workflows[k] = deepClone(BUILTIN_DEFAULTS.workflows[k]);
-    });
+
     out.prompt = {};
     ['system', 'template', 'itemFormat'].forEach(function (k) {
       out.prompt[k] = (c.prompt && typeof c.prompt[k] === 'string' && c.prompt[k].trim())
@@ -1708,10 +1693,10 @@
     out.creativeStyles = (Array.isArray(c.creativeStyles) && c.creativeStyles.length)
       ? c.creativeStyles : deepClone(BUILTIN_DEFAULTS.creativeStyles);
     out.tonePresets = Array.isArray(c.tonePresets) ? c.tonePresets : deepClone(BUILTIN_DEFAULTS.tonePresets);
-    out.llm = (c.llm && typeof c.llm === 'object' && !Array.isArray(c.llm)) ? c.llm : deepClone(BUILTIN_DEFAULTS.llm);
+    out.llm = Object.assign({ provider: 'OpenAI 兼容', temperature: 0.7 }, (c.llm && typeof c.llm === 'object' && !Array.isArray(c.llm)) ? c.llm : BUILTIN_DEFAULTS.llm);
     out.matchGoods = (c.matchGoods && typeof c.matchGoods === 'object' && !Array.isArray(c.matchGoods))
       ? {
-          mode: c.matchGoods.mode === 'llm' ? 'llm' : 'coze',
+          mode: 'llm',
           prompt: (typeof c.matchGoods.prompt === 'string' && c.matchGoods.prompt.trim())
             ? c.matchGoods.prompt : (BUILTIN_DEFAULTS.matchGoods ? BUILTIN_DEFAULTS.matchGoods.prompt : '')
         }
@@ -1732,8 +1717,7 @@
     if (!c || typeof c !== 'object' || Array.isArray(c)) return { ok: false, error: '配置文件不是合法的对象' };
     if (typeof c.siteName !== 'string' || !c.siteName.trim()) return { ok: false, error: '站点名称(siteName)不能为空' };
     if (typeof c.brandColor !== 'string' || !c.brandColor.trim()) return { ok: false, error: '品牌色(brandColor)不能为空' };
-    if (!c.workflows || typeof c.workflows !== 'object' || Array.isArray(c.workflows))
-      return { ok: false, error: '工作流配置(workflows)缺失或格式错误' };
+
     if (!c.prompt || typeof c.prompt !== 'object') return { ok: false, error: '提示词配置(prompt)缺失' };
     var pkArr = ['system', 'template', 'itemFormat'];
     for (var pi = 0; pi < pkArr.length; pi++) {
@@ -1755,8 +1739,8 @@
     if (c.matchGoods) {
       if (typeof c.matchGoods !== 'object' || Array.isArray(c.matchGoods))
         return { ok: false, error: '商品匹配(matchGoods)格式错误' };
-      if (c.matchGoods.mode !== 'coze' && c.matchGoods.mode !== 'llm')
-        return { ok: false, error: 'matchGoods.mode 必须为 coze 或 llm' };
+      if (c.matchGoods.mode !== 'llm')
+        return { ok: false, error: 'matchGoods.mode 必须为 llm' };
       if (typeof c.matchGoods.prompt !== 'string' || !c.matchGoods.prompt.trim())
         return { ok: false, error: 'matchGoods.prompt 不能为空' };
     }
@@ -1857,13 +1841,7 @@
     return '<div class="field"><label>' + esc(label) + '</label>' +
       '<input type="text" data-bind="' + esc(name) + '" value="' + esc(value) + '"></div>';
   }
-  function wfCard(key) {
-    var w = (state.working.workflows && state.working.workflows[key]) || {};
-    return '<div class="kv">' +
-      '<div><span class="k">工作流 ID</span><span class="v">' + esc(w.id || '-') + '</span></div>' +
-      '<div><span class="k">用途</span><span class="v">' + esc(w.label || '-') + '</span></div>' +
-      '</div><p class="card-desc" style="margin-top:12px">此处为只读展示，编辑能力后续接入。</p>';
-  }
+
 
   var PAGES = {
     general: {
@@ -1887,25 +1865,14 @@
               '<span class="kv"><span class="k">当前值</span><span class="v" id="brandVal">' + esc(c) + '</span></span>' +
               '</div><p class="card-desc" style="margin-top:10px">颜色通过 CSS 变量 --brand-600 注入，保存后两端统一生效。</p></div>';
           } },
-        { id: 'defaults', title: '默认创作参数', desc: '当用户未填写创作要求时，下发给 Coze 工作流的默认提示词（user_prompt）。', tag: '创作',
+        { id: 'defaults', title: '默认创作参数', desc: '当用户未填写创作要求时，下发给模型的默认提示词（user_prompt）。', tag: '创作',
           restore: ['defaultPrompt'],
           build: function () {
             return field('defaultPrompt', '默认创作要求（user_prompt）', state.working.defaultPrompt, 'textarea');
           } }
       ]
     },
-    workflows: {
-      key: 'workflows', title: '工作流管理', sub: '三个独立 Coze 工作流的当前配置，后续可在此切换版本与参数。',
-      icon: ICON.workflows,
-      sections: [
-        { id: 'getnews', title: 'getNews · 抓取新闻热点', desc: '输出新闻列表，作为后续匹配与创作的上游数据。', tag: 'Coze 工作流',
-          build: function () { return wfCard('getNews'); } },
-        { id: 'matchgoods', title: 'matchGoods · 匹配商品', desc: '基于单条新闻匹配商品候选，输出商品品类与卖点。', tag: 'Coze 工作流',
-          build: function () { return wfCard('matchGoods'); } },
-        { id: 'createcopy', title: 'createCopy · 生成营销文案', desc: '结合新闻与已选商品，生成多版本微博文案。', tag: 'Coze 工作流',
-          build: function () { return wfCard('createCopy'); } }
-      ]
-    },
+
     datasource: {
       key: 'datasource', title: '数据源', sub: '配置按 服务端 → 本机浏览器 → 内置默认 三级读取，此处可查看当前生效来源。',
       icon: ICON.datasource,
@@ -1943,30 +1910,18 @@
       key: 'prompts', title: '文案模板 · 模型指令', sub: '把下发给模型的指令与素材模板搬到此处，运营无需改代码即可调模型输出；本页支持实时预览与试运行调试。',
       icon: ICON.pencil,
       sections: [
-        { id: 'access', title: '试运行调用设置', desc: '「试运行」会真实调用 Coze createCopy 工作流（与工作台 Step4 同一条链路），无需在后台填任何密钥。', tag: '接入',
-          restore: ['llm'],
+        { id: 'access', title: '试运行调用说明', desc: '「试运行」会真实调用下方「模型接入」配置的大模型（与工作台 Step4 同一条 /api/llm 链路）。未填 API Key 时自动走本地模拟，仅供预览模板与占位符。', tag: '说明',
           build: function () {
-            var l = state.working.llm || {};
             return '' +
-              '<label class="sim-toggle"><input type="checkbox" data-bind="llm.simulate" ' + (l.simulate ? 'checked' : '') + '> 强制本地模拟（不真实调用，输出仅供演示模板与占位符渲染）</label>' +
-              '<div class="field" style="margin-top:14px"><label>调用方式（只读）</label>' +
-                '<input type="text" value="服务端代理 → Coze /v1/workflow/run（createCopy）" readonly></div>' +
-              '<div class="field"><label>鉴权凭证（只读）</label>' +
-                '<input type="text" value="由 Dev 服务器持有，不暴露给浏览器" readonly></div>' +
-              '<p class="card-desc" style="margin-top:10px">' +
-              '<b>为什么后台不再让你填 API Key？</b><br>' +
-              'Coze Chat API（/api/v1/chat/completions）不认工作流的 PAT，会直接报 <code>700012006 Login verification is invalid</code>；' +
-              '而 Coze 工作流调用（/v1/workflow/run）才认这把 PAT。所以「试运行」直接走 <b>createCopy 工作流</b>——' +
-              '你刚才在工作台 Step4 调通的那条。改完模板按「试运行」，看到的就是真实的端到端产出。' +
-              '<br><br><b>前端提示：</b>如果改了模板发现模型输出没变，还需要去 Coze「文案生成专家_wb」节点把硬指令改为引用 <code>{{user_prompt}}</code>（仅一次改动），后台编辑才会真正生效。' +
-              '</p>';
+              '<p class="card-desc">「试运行」使用「模型接入」页配置的 Provider / Base URL / API Key / Model / Temperature 真实调用一次大模型；' +
+              '未配置 API Key 时自动走本地模拟输出（仅用于验证模板与占位符拼装，非真实模型）。密钥仅存本机 localStorage，不会写入服务端文件。</p>';
           } },
         { id: 'system', title: '角色设定与写作规范', desc: '写给模型的人设与写作规则；在模型调用中作为 system 角色下发。', tag: '指令',
           restore: ['prompt.system'],
           build: function () {
             var v = (state.working.prompt && state.working.prompt.system) || '';
             return '<textarea data-bind="prompt.system" rows="13" class="ta-lg">' + esc(v) + '</textarea>' +
-              '<p class="card-desc" style="margin-top:10px">提示：确保 Coze「文案生成专家_wb」节点已改为引用 {{user_prompt}}（仅此一次改动），本段指令才会真正生效。</p>';
+              '<p class="card-desc" style="margin-top:10px">本段作为 system 角色下发给模型；占位符 {{user_prompt}} 在调用时由上方模板实时填入。</p>';
           } },
         { id: 'template', title: '素材拼装模板', desc: '每次调用时把运行期数据填进模板。用占位符表示运行期才有的内容，点下方清单可插入光标处。', tag: '模板',
           restore: ['prompt.template'],
@@ -2040,6 +1995,30 @@
       ]
     },
 
+    model: {
+      key: 'model', title: '模型接入', sub: '统一配置大模型接入（工作台与后台共用同一份 llm 配置）：Provider / Base URL / API Key / Model / Temperature；支持测试连接。',
+      icon: ICON.ai,
+      sections: [
+        { id: 'llm', title: '大模型接入配置', desc: '工作台「模型设置」与此处编辑的是同一份 LLM 配置（浏览器本机 localStorage），改一处两端同步。', tag: '大模型',
+          restore: ['llm'],
+          build: function () {
+            var l = state.working.llm || {};
+            return '' +
+              '<div class="field"><label>Provider</label>' +
+                '<input type="text" data-bind="llm.provider" value="' + esc(l.provider || 'OpenAI 兼容') + '" placeholder="OpenAI 兼容"></div>' +
+              '<div class="field"><label>Base URL（OpenAI 兼容）</label>' +
+                '<input type="text" data-bind="llm.baseURL" value="' + esc(l.baseURL || '') + '" placeholder="https://…/v1"></div>' +
+              '<div class="field"><label>API Key</label>' +
+                '<input type="password" data-bind="llm.apiKey" value="' + esc(l.apiKey || '') + '" placeholder="sk-…" autocomplete="off"></div>' +
+              '<div class="field"><label>模型名</label>' +
+                '<input type="text" data-bind="llm.model" value="' + esc(l.model || '') + '" placeholder="deepseek-v4-flash"></div>' +
+              '<div class="field"><label>Temperature（可选）</label>' +
+                '<input type="number" step="0.1" data-bind="llm.temperature" value="' + esc((typeof l.temperature === 'number' ? l.temperature : 0.7)) + '" placeholder="0.7"></div>' +
+              '<button class="btn-primary" data-action="test-llm-conn" style="margin-top:10px">🔌 测试连接</button>' +
+              '<div id="llm-test-out" class="trial-out-wrap" style="margin-top:10px"></div>';
+          } }
+      ]
+    },
     products: {
       key: 'products', title: '商品库', sub: '运营可维护的商品清单（新增 / 编辑 / 删除）。数据按 服务端 → 本机浏览器 → 内置默认 三级读取，顶栏徽章显示当前生效来源；保存后工作台即时生效。',
       icon: ICON.products,
@@ -2053,44 +2032,10 @@
       ]
     },
     match: {
-      key: 'match', title: '商品匹配', sub: '配置 matchGoods 的匹配方式：可走 Coze 工作流，也可改用大模型（分析新闻 → 生成关键词 → 在商品库检索推荐）。',
+      key: 'match', title: '商品匹配', sub: '配置商品匹配的提示词：大模型分析新闻 → 生成关键词 → 在商品库检索推荐（统一走 LLM 模式）。',
       icon: ICON.match,
       sections: [
-        { id: 'mode', title: '匹配方式', desc: '选择「Coze 工作流」沿用既有链路，或「大模型」改用外接 LLM 分析新闻并检索商品库。', tag: '模式',
-          build: function () {
-            var mode = (state.working.matchGoods && state.working.matchGoods.mode) || 'coze';
-            var cozeActive = mode === 'coze';
-            var llmActive = mode === 'llm';
-            return '' +
-              '<div class="mode-grid">' +
-                '<button class="mode-card ' + (cozeActive ? 'active' : '') + '" data-action="set-mode" data-value="coze">' +
-                  '<div class="mode-ico">🅒</div>' +
-                  '<div class="mode-name">Coze 工作流</div>' +
-                  '<div class="mode-desc">沿用既有 matchGoods 工作流，由 Coze 知识库返回商品。</div>' +
-                '</button>' +
-                '<button class="mode-card ' + (llmActive ? 'active' : '') + '" data-action="set-mode" data-value="llm">' +
-                  '<div class="mode-ico">⚡</div>' +
-                  '<div class="mode-name">大模型 LLM</div>' +
-                  '<div class="mode-desc">分析新闻生成关键词，在前端商品库检索并推荐命中商品。</div>' +
-                '</button>' +
-              '</div>' +
-              (cozeActive
-                ? '<p class="card-desc" style="margin-top:14px">当前：商品由 Coze 工作流实时匹配（价格 / 卖点为示例视觉）。</p>'
-                : '<p class="card-desc" style="margin-top:14px">当前：将使用下方「大模型接入」与「匹配提示词」在工作台 Step2 执行匹配。</p>');
-          } },
-        { id: 'llm', title: '大模型接入', desc: '仅「大模型」模式需要。配置 OpenAI 兼容端点的 baseURL / apiKey / model；密钥仅存本机，不会写入服务端文件。', tag: '大模型',
-          restore: ['llm'],
-          build: function () {
-            var l = state.working.llm || {};
-            return '' +
-              '<div class="field"><label>Base URL（OpenAI 兼容）</label>' +
-                '<input type="text" data-bind="llm.baseURL" value="' + esc(l.baseURL || '') + '" placeholder="https://…/v1"></div>' +
-              '<div class="field"><label>API Key</label>' +
-                '<input type="password" data-bind="llm.apiKey" value="' + esc(l.apiKey || '') + '" placeholder="sk-…" autocomplete="off"></div>' +
-              '<div class="field"><label>模型名</label>' +
-                '<input type="text" data-bind="llm.model" value="' + esc(l.model || '') + '" placeholder="deepseek-v4-flash"></div>' +
-              '<label class="sim-toggle"><input type="checkbox" data-bind="llm.simulate" ' + (l.simulate ? 'checked' : '') + '> 强制本地模拟（无密钥 / 勾选时，工作台用新闻关键词兜底匹配）</label>';
-          } },
+
         { id: 'prompt', title: '匹配提示词（大模型模式）', desc: '下发给 LLM 的指令；用 {{title}} / {{brief}} 占位新闻标题与内容，运行期自动填充。', tag: '大模型',
           restore: ['matchGoods.prompt'],
           build: function () {
@@ -2169,7 +2114,7 @@
                 '<textarea data-bind="eval.reviewPrompt" rows="13" class="ta-lg">' + esc(e.reviewPrompt || '') + '</textarea></div>';
           } },
         { id: 'rework', title: '自动返工', desc: '校验未过时，把「具体哪几项没过、为什么」原样交给模型修订并复验；只接受分数不降的版本，防止越改越差。提示词可改。', tag: '返工',
-          restore: ['eval.reworkPrompt', 'eval.reworkMaxRounds', 'eval.reworkTemp', 'eval.concurrency', 'eval.repeats', 'eval.unitPrice', 'eval.simulate'],
+          restore: ['eval.reworkPrompt', 'eval.reworkMaxRounds', 'eval.reworkTemp', 'eval.concurrency', 'eval.repeats', 'eval.unitPrice'],
           build: function () {
             var e = state.working.eval || {};
             return '' +
@@ -2183,9 +2128,8 @@
                 '<div class="field"><label>并发数（评测台用）</label><input type="number" data-bind="eval.concurrency" value="' + esc(e.concurrency) + '"></div>' +
                 '<div class="field"><label>每个用例重复次数</label><input type="number" data-bind="eval.repeats" value="' + esc(e.repeats) + '"></div>' +
               '</div>' +
-              '<div class="grid-2">' +
                 '<div class="field"><label>参考单价（元/次，用于成本估算）</label><input type="number" step="0.001" data-bind="eval.unitPrice" value="' + esc(e.unitPrice) + '"></div>' +
-                '<div class="field"><label>&nbsp;</label><label class="sim-toggle" style="margin-top:8px"><input type="checkbox" data-bind="eval.simulate" ' + (e.simulate ? 'checked' : '') + '> 强制本地模拟（不真实调用模型）</label></div>' +
+              '</div>';
               '</div>';
           } }
       ]
@@ -2300,10 +2244,19 @@
 
     // 左侧组 2：其它后台页面（hash 路由跳转，当前页高亮）
     var pageNav = document.getElementById('page-nav');
-    pageNav.innerHTML = Object.keys(PAGES).map(function (k) {
-      var p = PAGES[k];
-      var active = (k === route) ? ' active' : '';
-      return '<a class="nav-item' + active + '" href="#/' + k + '">' + p.icon + '<span>' + esc(p.title) + '</span></a>';
+    var GROUPS = [
+      { title: '内容运营', keys: ['prompts', 'products', 'news'] },
+      { title: 'AI · 模型', keys: ['model', 'match', 'eval'] },
+      { title: '系统', keys: ['general', 'datasource'] }
+    ];
+    pageNav.innerHTML = GROUPS.map(function (g) {
+      return '<div class="nav-group"><div class="nav-group-title">' + esc(g.title) + '</div>' +
+        g.keys.map(function (k) {
+          var p = PAGES[k];
+          if (!p) return '';
+          var active = (k === route) ? ' active' : '';
+          return '<a class="nav-item' + active + '" href="#/' + k + '">' + p.icon + '<span>' + esc(p.title) + '</span></a>';
+        }).join('') + '</div>';
     }).join('');
 
     // 数据源页内的"清除本机缓存"按钮
@@ -2600,15 +2553,13 @@
       tones2.push(val);
       render();
     }
-    // ---- 商品匹配页：模式切换 / 测试 ----
-    if (action === 'set-mode') {
-      var mv = el.getAttribute('data-value') || 'coze';
-      state.working.matchGoods = state.working.matchGoods || {};
-      state.working.matchGoods.mode = mv === 'llm' ? 'llm' : 'coze';
-      render();
-      return;
-    } else if (action === 'test-match') {
+    // ---- 商品匹配页：测试 ----
+    if (action === 'test-match') {
       testMatch();
+      return;
+    }
+    else if (action === 'test-llm-conn') {
+      testLLMConnection();
       return;
     }
     // ---- 商品库：弹窗与行内操作 ----
@@ -2706,7 +2657,6 @@
   // 把当前 working 持久化到本机（始终作为镜像缓存，保证 file:// 模式与工作台一致）
   function persistLocal() {
     try { localStorage.setItem(LS_KEY, JSON.stringify(state.working)); } catch (e) { }
-    try { localStorage.setItem(LS_LLM_KEY, JSON.stringify(state.working.llm || {})); } catch (e) { }
   }
 
   function save() {
@@ -2810,7 +2760,6 @@
       state.config = res.config;
       state.source = res.source;
       state.working = deepClone(res.config);
-      injectLocalLLM();
       setSavedSnapshot();
       render();
       applyBrandColor(res.config.brandColor);
@@ -2877,7 +2826,6 @@
       state.config = res.config;
       state.source = res.source;
       state.working = deepClone(res.config);
-      injectLocalLLM();
       setSavedSnapshot();
       render();
       applyBrandColor(res.config.brandColor);

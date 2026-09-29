@@ -21,9 +21,6 @@ export interface Product {
   // 商品库维护字段（运营在后台编辑，作为工作台展示与未来本地 matchGoods 的数据源）
   icon?: string;       // 表情图标（emoji），优先于按品类推导的 Lucide 图标
   gradient?: string;   // 背景渐变（CSS），优先于按品类推导的配色
-  // Coze matchGoods output 额外字段（来自知识库"详情/最近一个月"）
-  month?: number;     // 最近一个月销量（Coze output.最近一个月）
-  detail?: string;    // 详情文本（Coze output.详情）
 }
 
 export interface MatchedProduct {

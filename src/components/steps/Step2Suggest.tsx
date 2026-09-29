@@ -104,28 +104,23 @@ export default function Step2Suggest() {
         {currentNews.title}
       </SelectedContextBar>
 
-      {/* 数据来源说明（四态：loading / 大模型匹配 / Coze 实时 / 未接入） */}
+      {/* 数据来源说明（三态：loading / 大模型匹配 / 未接入） */}
       <div className="mt-5 mb-1">
         <span className={`inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full text-[12px] font-medium ${
           matchGoodsLoading ? "bg-amber-50 text-amber-700"
           : matchMode === "llm" ? "bg-violet-50 text-violet-700"
-          : cozeLoaded ? "bg-brand-50 text-brand-700"
           : "bg-gray-100 text-gray-500"
         }`}>
           {matchGoodsLoading ? (
             <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {matchMode === "llm" ? "大模型正在分析新闻并检索商品库…" : "Coze 正在为你匹配商品…（约 5-10 秒）"}
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> 大模型正在分析新闻并检索商品库…
             </>
           ) : matchMode === "llm" ? (
             <>
               <Sparkles className="w-3.5 h-3.5" /> 大模型匹配：AI 关键词「{matchKeywords.join("、") || "—"}」→ 商品库检索
             </>
-          ) : cozeLoaded ? (
-            <>
-              <Sparkles className="w-3.5 h-3.5" /> 商品品类由 Coze 工作流实时匹配（价格/卖点为示例视觉）
-            </>
           ) : (
-            "未接入 Coze，当前展示演示商品"
+            "未接入大模型，当前展示演示商品"
           )}
         </span>
       </div>
@@ -134,7 +129,7 @@ export default function Step2Suggest() {
         <div>
           <h2 className="text-[15px] font-semibold text-gray-900">系统推荐</h2>
           <p className="mt-1 text-[12.5px] text-gray-500">
-            {matchMode === "llm" ? "大模型生成关键词 → 商品库检索命中" : cozeLoaded ? "Coze 实时匹配结果" : "AI 根据热点、销量、库存综合排序"}
+            {matchMode === "llm" ? "大模型生成关键词 → 商品库检索命中" : "AI 根据热点、销量、库存综合排序"}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -170,7 +165,7 @@ export default function Step2Suggest() {
                 <div className={`absolute top-3 left-3 inline-flex items-center gap-1 px-2 h-6 backdrop-blur rounded-md text-[11px] font-medium ${
                   m.source === "local" ? "bg-white/90 text-brand-600" : "bg-brand-500 text-white"
                 }`}>
-                  {m.source === "coze" ? "🟣 Coze 实时匹配" : m.source === "llm" ? "⚡ 大模型匹配" : `匹配度 ${m.score}%`}
+                  {m.source === "coze" || m.source === "llm" ? "⚡ 大模型匹配" : `匹配度 ${m.score}%`}
                 </div>
                 {isBound && (
                   <div className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 h-6 bg-brand-500 text-white rounded-md text-[11px] font-medium">

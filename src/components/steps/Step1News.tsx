@@ -73,7 +73,7 @@ export default function Step1News() {
         <StatCard label="实时热点" value={displayNewsList.length} unit="条" trend={`${displayNewsList.length} 条`} trendUp />
         <StatCard label="高潜热点" value={hotCount} unit="条" trend="+8.4%" trendUp />
         <StatCard label="匹配商品方向" value={cozeProducts.length > 0 ? cozeProducts.length : "—"} unit={cozeProducts.length > 0 ? "个" : ""} trend="+18.2%" trendUp />
-        <StatCard label="Coze 文案版本" value={copyList.length > 0 ? copyList.length : "—"} unit={copyList.length > 0 ? "版" : ""} trend="+2.1%" trendUp highlight />
+        <StatCard label="文案版本" value={copyList.length > 0 ? copyList.length : "—"} unit={copyList.length > 0 ? "版" : ""} trend="+2.1%" trendUp highlight />
       </div>
 
       {/* 实时热点 区块标题 */}

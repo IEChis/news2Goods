@@ -39,6 +39,9 @@ export interface CopyConfig {
   tonePresets: string[];
 }
 
+/** 内置默认「生成 Prompt」显示名（当前没有独立版本系统，作为默认版本标识） */
+export const DEFAULT_GEN_PROMPT_NAME = "营销文案生成 V3";
+
 /** 内置默认（与 admin 的 BUILTIN_DEFAULTS 保持一致） */
 export const BUILTIN_PROMPT: PromptConfig = {
   system:
@@ -245,20 +248,70 @@ export async function loadCopyConfig(): Promise<CopyConfig> {
   };
 }
 
+/**
+ * 保存「生成 Prompt」（文案模板 system/template/itemFormat）到全局默认配置。
+ * 写入本机 localStorage（优先）→ 服务端 /api/admin-config。
+ * 注意：这是「更新默认 Prompt」的次级操作；评测台「应用到本次评测」不会调用本函数，
+ * 以免误改正式生产配置。
+ */
+export async function saveCopyPrompt(prompt: PromptConfig): Promise<{ target: string }> {
+  const whole = (() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {
+      /* ignore */
+    }
+    return {};
+  })();
+  whole.prompt = {
+    system: prompt.system ?? "",
+    template: prompt.template ?? "",
+    itemFormat: prompt.itemFormat ?? "",
+  };
+
+  // ① 本机
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(whole));
+  } catch {
+    /* ignore */
+  }
+
+  // ② 服务端（管理员可见；apiKey 不在此结构内）
+  let target = "local";
+  try {
+    const r = await fetch("/api/admin-config");
+    let srv: Record<string, unknown> = {};
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.config) srv = d.config;
+    }
+    srv.prompt = whole.prompt;
+    const w = await fetch("/api/admin-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(srv),
+    });
+    if (w.ok) target = "server";
+  } catch {
+    /* ignore */
+  }
+  return { target };
+}
+
 /* ============================================================
  * 商品匹配（matchGoods）配置 —— 与运营后台 admin/ 共用同一套规则。
- * 支持两种模式：
- *   - coze：沿用既有 matchGoods 工作流（Coze 知识库返回商品）。
- *   - llm ：前端用大模型分析新闻 → 生成商品关键词 → 在本地商品库检索推荐。
+ * 统一走「接入的大模型（LLM）」模式：前端用大模型分析新闻 → 生成商品关键词
+ * → 在本地商品库检索推荐命中商品。
  * 运行时读取优先级：本机浏览器(localStorage) → 服务端(/api/admin-config) → 内置默认。
  * ============================================================ */
 
-export type MatchMode = "coze" | "llm";
+export type MatchMode = "llm";
 
 export interface MatchConfig {
   mode: MatchMode;
   prompt: string;
-  llm: { simulate: boolean; baseURL: string; model: string; apiKey: string };
+  llm: { baseURL: string; model: string; apiKey: string };
 }
 
 /** 内置默认匹配提示词（与 admin / vite 的 BUILTIN_DEFAULTS.matchGoods.prompt 保持一致） */
@@ -299,7 +352,6 @@ export const BUILTIN_MATCH_PROMPT = `# 角色：商品匹配师
 // 真实密钥来源：① 本机 .env 的 AIGW_API_KEY（dev 时 /api/llm 服务端兜底）；
 //            ② 运营在后台「模型接入」填写并存于本机 localStorage（前端传来优先）。
 export const BUILTIN_LLM = {
-  simulate: false,
   baseURL: "https://aigw.yuexiuproperty.cn/v1",
   model: "deepseek-v4-flash",
   apiKey: "",
@@ -336,10 +388,9 @@ export async function loadMatchConfig(): Promise<MatchConfig> {
   const mg = base.matchGoods || {};
   const llm = base.llm || {};
   return {
-    mode: mg.mode === "llm" ? "llm" : "coze",
+    mode: "llm",
     prompt: typeof mg.prompt === "string" && mg.prompt.trim() ? mg.prompt : BUILTIN_MATCH_PROMPT,
     llm: {
-      simulate: !!llm.simulate,
       baseURL: typeof llm.baseURL === "string" && llm.baseURL.trim() ? llm.baseURL : BUILTIN_LLM.baseURL,
       model: typeof llm.model === "string" && llm.model.trim() ? llm.model : BUILTIN_LLM.model,
       apiKey: typeof llm.apiKey === "string" ? llm.apiKey : BUILTIN_LLM.apiKey,

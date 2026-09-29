@@ -5,10 +5,11 @@ import { combineScores } from "./scoring";
 import { reviewCopyReal, simulateReview } from "./reviewer";
 import { runReworkLoop, simulateRewriter } from "./rework";
 import { generateCopy } from "./generate";
-import { loadMatchConfig, loadCopyConfig } from "../api/promptConfig";
-import { callLLM } from "../api/coze";
+import { loadCopyConfig, type PromptConfig } from "../api/promptConfig";
+import { callChat } from "../api/llmService";
+import { getLLMConfig, isConfigured } from "../api/llmConfig";
 import type { CheckResult } from "./types";
-import type { CaseResult, EvalRun, EvalRunSummary, TestCase } from "./store";
+import { type CaseResult, type EvalRun, type EvalRunSummary, type TestCase, fingerprint, PROMPT_FP_SEP } from "./store";
 
 type LLMCall = (messages: { role: string; content: string }[], temperature: number) => Promise<string>;
 
@@ -22,6 +23,10 @@ export interface RunOptions {
   shouldStop?: () => boolean;
   llmCall?: LLMCall; // 真实模型调用（浏览器注入）；不传 → 按 simulate 处理
   label?: string;
+  /** 本次评测使用「被测生成 Prompt」快照（不传 → 回退实时默认） */
+  generationPrompt?: PromptConfig;
+  /** 本次生成 Prompt 显示名（不传 → 默认名） */
+  generationPromptName?: string;
 }
 
 function mean(arr: number[]): number {
@@ -48,22 +53,20 @@ export async function runEval(opts: RunOptions): Promise<EvalRun> {
         tasks.push({ case: c, style: s, repeat: r + 1 });
   const total = tasks.length;
 
-  // 真实模型调用（取 matchConfig 的 baseURL/apiKey，模型名以 evalCfg.model 覆盖）
+  // 真实模型调用（统一经 llmService；模型名以 evalCfg.model 覆盖；未配置则走离线模拟）
   let llmCall: LLMCall | null = opts.llmCall || null;
-  if (!llmCall && !evalCfg.simulate) {
-    try {
-      const mc = await loadMatchConfig();
-      const model = evalCfg.model || mc.llm.model;
-      llmCall = (messages, temperature) =>
-        callLLM({ baseURL: mc.llm.baseURL, apiKey: mc.llm.apiKey, model }, messages, temperature);
-    } catch {
-      llmCall = null;
-    }
+  if (!llmCall && !evalCfg.simulate && isConfigured()) {
+    const model = evalCfg.model || getLLMConfig().model;
+    llmCall = (messages, temperature) => callChat(messages, { temperature, model });
   }
 
   const useSim = evalCfg.simulate || !llmCall;
 
   const cc = await loadCopyConfig();
+  // 本次评测实际使用的「被测生成 Prompt」：优先用注入的（支持"仅应用到本次评测"），否则回退实时默认
+  const genPrompt: PromptConfig = opts.generationPrompt && (opts.generationPrompt.system || opts.generationPrompt.template) ? opts.generationPrompt : cc.prompt;
+  const genModel = evalCfg.model || getLLMConfig().model || "";
+  const genTemp = getLLMConfig().temperature;
   const results: CaseResult[] = [];
   let done = 0;
   let costCalls = 0;
@@ -103,6 +106,8 @@ export async function runEval(opts: RunOptions): Promise<EvalRun> {
       tone: styleTone,
       simulate: useSim,
       llmCall: llmCall ?? undefined,
+      prompt: genPrompt,
+      temperature: genTemp,
     });
     if (!useSim) costCalls += 1;
 
@@ -139,6 +144,7 @@ export async function runEval(opts: RunOptions): Promise<EvalRun> {
       score = combineScores(validation, review, evalCfg.weightsMachine);
     }
 
+    const materialSig = fingerprint(material.news.title + PROMPT_FP_SEP + material.products.map((p) => p.name + ":" + p.price).join("|"));
     return {
       caseId: task.case.id,
       caseName: task.case.name,
@@ -152,6 +158,7 @@ export async function runEval(opts: RunOptions): Promise<EvalRun> {
       rework,
       humanVote: null,
       humanNote: "",
+      materialSig,
     };
   }
 
@@ -235,28 +242,45 @@ export async function runEval(opts: RunOptions): Promise<EvalRun> {
     configSnapshot: {
       eval: { ...evalCfg },
       copyPrompt: {
-        system: cc.prompt.system,
-        template: cc.prompt.template,
-        itemFormat: cc.prompt.itemFormat,
+        system: genPrompt.system,
+        template: genPrompt.template,
+        itemFormat: genPrompt.itemFormat,
       },
       creativeStyles: cc.creativeStyles,
       tonePresets: cc.tonePresets,
     },
     weightsMachine: evalCfg.weightsMachine,
     unitPrice: evalCfg.unitPrice,
-    model: evalCfg.model || (llmCall ? evalCfg.model : ""),
+    model: genModel,
     enabledReview: evalCfg.enabledReview,
     concurrency: evalCfg.concurrency,
     repeats: evalCfg.repeats,
     cases: results,
     summary,
+    promptName: opts.generationPromptName || "营销文案生成 V3",
+        promptFingerprint: fingerprint(genPrompt.system + PROMPT_FP_SEP + genPrompt.template + PROMPT_FP_SEP + genPrompt.itemFormat),
+    generationConfig: {
+      system: genPrompt.system,
+      template: genPrompt.template,
+      itemFormat: genPrompt.itemFormat,
+      model: genModel,
+      temperature: genTemp,
+    },
+    evaluationConfig: {
+      evaluatorPrompt: evalCfg.reviewPrompt,
+      reworkPrompt: evalCfg.reworkPrompt,
+      weightsMachine: evalCfg.weightsMachine,
+      enabledReview: evalCfg.enabledReview,
+    },
+    tone: opts.tone || "",
+    selectedStyles: (opts.styles || []).map((x) => x.name),
   };
   return run;
 }
 
 /** A/B 对比：返回两次运行的各项指标涨跌 + 逐用例分数对比 */
 export interface ABDiff {
-  metrics: Array<{ key: string; label: string; a: number | null; b: number | null; delta: number | null; better: boolean | null }>;
+  metrics: Array<{ key: string; label: string; a: number | null; b: number | null; delta: number | null; better: boolean | null; unit?: "percent" | "count" }>;
   cases: Array<{
     caseName: string;
     styleName: string;
@@ -266,6 +290,7 @@ export interface ABDiff {
     worse: boolean;
     aCopy: string;
     bCopy: string;
+    sameInput: boolean;
   }>;
 }
 export function diffRuns(a: EvalRun, b: EvalRun): ABDiff {
@@ -278,6 +303,7 @@ export function diffRuns(a: EvalRun, b: EvalRun): ABDiff {
       b: b.summary.machinePassRate,
       delta: b.summary.machinePassRate - a.summary.machinePassRate,
       better: b.summary.machinePassRate >= a.summary.machinePassRate,
+      unit: "percent",
     },
     {
       key: "machine",
@@ -305,6 +331,7 @@ export function diffRuns(a: EvalRun, b: EvalRun): ABDiff {
       b: b.summary.bannedHits,
       delta: b.summary.bannedHits - a.summary.bannedHits,
       better: b.summary.bannedHits <= a.summary.bannedHits,
+      unit: "count",
     },
     {
       key: "fab",
@@ -313,6 +340,7 @@ export function diffRuns(a: EvalRun, b: EvalRun): ABDiff {
       b: b.summary.fabricatedCount,
       delta: b.summary.fabricatedCount - a.summary.fabricatedCount,
       better: b.summary.fabricatedCount <= a.summary.fabricatedCount,
+      unit: "count",
     },
   ];
 
@@ -325,6 +353,7 @@ export function diffRuns(a: EvalRun, b: EvalRun): ABDiff {
     const rb = bMap.get(k);
     if (!rb) continue;
     const delta = rb.score.total - r.score.total;
+    const sameInput = r.materialSig && rb.materialSig ? r.materialSig === rb.materialSig : true;
     cases.push({
       caseName: r.caseName,
       styleName: r.styleName,
@@ -334,6 +363,7 @@ export function diffRuns(a: EvalRun, b: EvalRun): ABDiff {
       worse: delta < 0,
       aCopy: r.copy,
       bCopy: rb.copy,
+      sameInput,
     });
   }
   return { metrics, cases };

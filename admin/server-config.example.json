@@ -4,20 +4,6 @@
   "brandColor": "#7c3aed",
   "defaultPrompt": "语气有网感，突出商品卖点，加入互动与福利钩子。",
   "maxNews": 20,
-  "workflows": {
-    "getNews": {
-      "id": "<COZE_WORKFLOW_ID>",
-      "label": "抓取新闻热点"
-    },
-    "matchGoods": {
-      "id": "<COZE_WORKFLOW_ID>",
-      "label": "匹配商品"
-    },
-    "createCopy": {
-      "id": "<COZE_WORKFLOW_ID>",
-      "label": "生成营销文案"
-    }
-  },
   "prompt": {
     "system": "你是一位资深的微博营销文案专家，擅长把热点新闻与商品结合，产出高转化率的微博文案。\n\n# 任务\n基于下方【素材】中的新闻热点、商品信息与【创作要求】，创作 1 条营销文案。\n\n# 写作规范\n1. 仅输出 1 个完整版本，严格遵循【创作要求】中的“主打语调”和“创作风格 / 风格要求”，不要拆分成多个版本，也不要使用任何分隔符或编号。\n2. 严禁任何前缀、编号或分隔标记（如“版本1：”、“A:”、“---”、“【】”等等）。\n3. 严禁开场白、解释、注释，以及用 markdown 代码块包裹。\n4. 单个版本 100-200 字，语气符合微博调性（有网感、有梗、emoji 自然）。\n5. 至少包含 1 个 # 话题标签。\n6. 末尾必须带互动提问或限时福利钩子。\n7. 【商品边界·硬约束】严禁在文案中提及【商品清单】以外的产品。只能使用清单中明确列出的商品名、价格、卖点；不允许添加、替换、联想或推荐同类其他商品。文案中提及的商品数量必须与【商品清单】保持一致。",
     "template": "【新闻热点】\n标题：{{hotspot_title}}\n摘要：{{hotspot_summary}}\n话题标签：{{topic_tags}}\n\n【商品清单】\n{{product_list}}\n\n【创作要求】\n主打语调：{{tone}}\n创作风格：{{style_name}} —— {{style_requirement}}",
@@ -43,9 +29,11 @@
     "互动话题"
   ],
   "llm": {
-    "simulate": false,
-    "baseURL": "https://aigw.yuexiuproperty.cn/v1/chat/completions",
-    "model": "deepseek-v4-flash"
+    "provider": "OpenAI 兼容",
+    "baseURL": "https://aigw.yuexiuproperty.cn/v1",
+    "model": "deepseek-v4-flash",
+    "apiKey": "",
+    "temperature": 0.7
   },
   "matchGoods": {
     "mode": "llm",

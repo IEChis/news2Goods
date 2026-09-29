@@ -186,7 +186,7 @@ export const mockProducts: Product[] = [
   },
 ];
 
-// 基于关键词重叠计算「新闻-商品」匹配度（模拟推荐算法，真实场景由 Coze 工作流完成）
+// 基于关键词重叠计算「新闻-商品」匹配度（离线兜底推荐算法）
 // 第二参数 products 允许传入「本地商品库」（运营在后台维护的单一数据源），
 // 这样新增的商品也能被本地匹配算法推荐出来。
 export function getMatchScores(newsId: string, products: Product[] = mockProducts): MatchedProduct[] {
@@ -210,7 +210,7 @@ export function getMatchScores(newsId: string, products: Product[] = mockProduct
     .sort((a, b) => b.score - a.score);
 }
 
-// 生成多版本微博营销文案（离线兜底；真实数据由 Coze 工作流返回 output_red_list）
+// 生成多版本微博营销文案（离线兜底；真实文案由大模型生成）
 export function generateMockCopies(news: NewsItem, products: Product[]): string[] {
   const used = products.length ? products : [];
   const kw = news.keywords[0] || "热点";

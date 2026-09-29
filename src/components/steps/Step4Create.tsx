@@ -3,9 +3,10 @@ import { ArrowRight, ArrowLeft, Sparkles, Copy, RefreshCw, Check, MessageCircle,
 import { useWorkflow } from "../../context/WorkflowContext";
 import { PageHeader, PrimaryActionButton, SelectedContextBar } from "../Shared";
 import Thumb from "../Thumb";
-import { loadCopyConfig, loadMatchConfig, type CreativeStyle } from "../../api/promptConfig";
+import { loadCopyConfig, type CreativeStyle } from "../../api/promptConfig";
 import { loadEvalConfig } from "../../eval/config";
-import { callLLM } from "../../api/coze";
+import { callChat } from "../../api/llmService";
+import { getLLMConfig, isConfigured } from "../../api/llmConfig";
 import { toValidatorCfg } from "../../eval/prompts";
 import { validateCopy, getFixableFailures } from "../../eval/validator";
 import { runReworkLoop, simulateRewriter } from "../../eval/rework";
@@ -106,14 +107,9 @@ export default function Step4Create() {
       }
       const useSim = cfg.simulate;
       let llmCall: ((m: { role: string; content: string }[], t: number) => Promise<string>) | null = null;
-      if (!useSim) {
-        try {
-          const mc = await loadMatchConfig();
-          const model = cfg.model || mc.llm.model;
-          llmCall = (m, t) => callLLM({ baseURL: mc.llm.baseURL, apiKey: mc.llm.apiKey, model }, m, t);
-        } catch {
-          llmCall = null;
-        }
+      if (!useSim && isConfigured()) {
+        const model = cfg.model || getLLMConfig().model;
+        llmCall = (m, t) => callChat(m, { temperature: t, model });
       }
       const rewrite = useSim || !llmCall
         ? async (t: string, i: CheckResult[], m: EvalMaterial, c: typeof cfg) => simulateRewriter(t, i, m, c)

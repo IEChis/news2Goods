@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from "react";
 import type { WorkflowState, WorkflowAction, NewsItem, Product, CopyCandidate } from "../types";
 import { mockNews, mockProducts } from "../data/mock";
-import { runGetNews, runMatchByLLM, parseKeywords, searchProductsByKeywords } from "../api/coze";
-import { runCreateCopyByLLM, type CopyLLM } from "../api/llm";
+import { runMatchByLLM, parseKeywords, searchProductsByKeywords, runCreateCopyByLLM } from "../api/llmService";
+import { isConfigured } from "../api/llmConfig";
 import { runFetchNews } from "../api/news";
 import { loadCopyConfig, assembleUserPrompt, loadMatchConfig, type CreativeStyle, type CopyConfig, type MatchMode } from "../api/promptConfig";
 import { loadProducts } from "../api/products";
@@ -20,8 +20,8 @@ const initialState: WorkflowState = {
 
 // 工作台进度持久化（仅当前标签页会话内有效）：切到后台再切回 / 时自动恢复，
 // 避免「同标签切换」因整页重载而丢失 React 状态。关闭标签页即清除，不留跨会话残留。
-// 注意：不仅持久化 reducer 的 workflow 状态，还要持久化从 Coze 拉回的真实数据
-// （cozeNews / cozeProducts / 接入标志），否则切回后新闻列表会退回 mock 数据。
+// 注意：不仅持久化 reducer 状态，还要持久化从「接入的大模型」拉回的真实数据
+// （aiNews / aiProducts / 接入标志），否则切回后新闻列表会退回 mock 数据。
 const STORAGE_KEY = "hg_workflow_state_v1";
 
 interface PersistSnapshot {
@@ -41,7 +41,7 @@ function loadSnapshot(): PersistSnapshot {
     cozeProducts: [],
     cozeLoaded: false,
     matchGoodsLoaded: false,
-    matchMode: "coze",
+    matchMode: "llm",
     matchKeywords: [],
   };
   try {
@@ -76,7 +76,7 @@ function loadSnapshot(): PersistSnapshot {
       cozeProducts: Array.isArray(parsed.cozeProducts) ? parsed.cozeProducts : [],
       cozeLoaded: !!parsed.cozeLoaded,
       matchGoodsLoaded: !!parsed.matchGoodsLoaded,
-      matchMode: parsed.matchMode === "llm" ? "llm" : "coze",
+      matchMode: "llm",
       matchKeywords: Array.isArray(parsed.matchKeywords) ? parsed.matchKeywords : [],
     };
   } catch {
@@ -181,7 +181,7 @@ interface WorkflowContextValue {
   cozeProducts: Product[];           // 来自 matchGoods
   visibleCozeProducts: Product[];    // 过滤掉「已删除商品」后的推荐（验收 #3）
   cozeLoading: boolean;              // 任一工作流调用中
-  cozeLoaded: boolean;               // 是否接过 Coze（任一）
+  cozeLoaded: boolean;               // 是否接过「接入的大模型」（任一）
   matchGoodsLoading: boolean;
   matchGoodsLoaded: boolean;
   // 大模型匹配（llm 模式）元信息
@@ -232,7 +232,7 @@ const WorkflowContext = createContext<WorkflowContextValue | null>(null);
 export type Step = 1 | 2 | 3 | 4 | 5;
 
 export function WorkflowProvider({ children }: { children: ReactNode }) {
-  // 一次性从 sessionStorage 恢复：reducer 状态 + Coze 真实数据
+  // 一次性从 sessionStorage 恢复：reducer 状态 + 大模型拉回的真实数据
   const [snapshot] = useState(loadSnapshot);
   const [state, dispatch] = useReducer(workflowReducer, snapshot.workflow);
   const [newsList, setNewsList] = useState<NewsItem[]>(mockNews);
@@ -240,7 +240,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastIdRef = useState(() => ({ current: 0 }))[0];
 
-  // Coze 数据
+  // 大模型拉回的真实数据
   const [cozeNews, setCozeNews] = useState<NewsItem[]>(snapshot.cozeNews);
   const [cozeProducts, setCozeProducts] = useState<Product[]>(snapshot.cozeProducts);
   const [cozeLoading, setCozeLoading] = useState(false);
@@ -265,7 +265,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // 推荐商品可见性：来自本地商品库、但已被删除的残留推荐要过滤掉（验收 #3）。
-  // 规则：coze 推荐商品若 id 在「匹配时的商品库快照」里（说明它本属本地库），但当前商品库已无该 id → 过滤；
+  // 规则：大模型推荐商品若 id 在「匹配时的商品库快照」里（说明它本属本地库），但当前商品库已无该 id → 过滤；
   // 其余（Coze 知识库独有商品，或本地库仍在的）保留。商品库未加载完前不过滤，避免误删。
   const visibleCozeProducts = useMemo(() => {
     if (!productLibrary.length) return cozeProducts;
@@ -320,9 +320,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
   }, [showToast]);
 
   // ---- 工作流 2：matchGoods（按用户选定的单条新闻）----
-  // 支持两种模式：
-  //   - coze：沿用既有 matchGoods 工作流（Coze 知识库返回商品）。
-  //   - llm ：前端用大模型分析新闻 → 生成关键词 → 在本地商品库检索并推荐命中商品。
+  // 统一走「接入的大模型（LLM）」：分析新闻 → 生成关键词 → 在本地商品库检索并推荐命中商品。
   const fetchMatchGoods = useCallback(async (news: NewsItem, q = "") => {
     setMatchGoodsLoading(true);
     setCozeLoading(true);
@@ -333,13 +331,13 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
       const pool = lib.length ? lib : mockProducts;
       setCozeLibraryIds(new Set(pool.map((p) => p.id)));
       // 商品匹配：统一走「接入的大模型」（不再使用 Coze 工作流）
-      const useSim = cfg.llm.simulate || !cfg.llm.apiKey;
+      const configured = isConfigured();
       let keywords: string[] = [];
-      if (useSim) {
-        // 本地兜底：无密钥 / 勾选模拟时，用新闻自带 keywords 作为检索词
+      if (!configured) {
+        // 离线兜底：未配置模型密钥时，用新闻自带 keywords 作为检索词
         keywords = news.keywords && news.keywords.length ? news.keywords : [];
       } else {
-        const raw = await runMatchByLLM(news, cfg.prompt, cfg.llm);
+        const raw = await runMatchByLLM(news, cfg.prompt);
         keywords = parseKeywords(raw);
         if (!keywords.length) keywords = news.keywords || []; // LLM 说"没有对应内容"时回退新闻关键词
       }
@@ -367,14 +365,11 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
   const fetchCreateCopy = useCallback(async (news: NewsItem, products: Product[], userPrompt = "") => {
     setCozeLoading(true);
     try {
-      const mc = await loadMatchConfig();
-      const llm: CopyLLM = { baseURL: mc.llm.baseURL, apiKey: mc.llm.apiKey, model: mc.llm.model };
       const cfg = await loadCopyConfig();
       const res = await runCreateCopyByLLM(
         { title: news.title, summary: news.summary, keywords: news.keywords },
         products,
-        { tone: "", styleName: "", styleRequirement: "", extraRequirement: userPrompt, prompt: cfg.prompt },
-        llm
+        { tone: "", styleName: "", styleRequirement: "", extraRequirement: userPrompt, prompt: cfg.prompt }
       );
       if (res.length) {
         dispatch({ type: "SET_COPY_LIST", payload: res });
@@ -409,8 +404,6 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const mc = await loadMatchConfig();
-        const llm: CopyLLM = { baseURL: mc.llm.baseURL, apiKey: mc.llm.apiKey, model: mc.llm.model };
         const candidates: CopyCandidate[] = [];
         for (let i = 0; i < styles.length; i++) {
           const st = styles[i];
@@ -418,8 +411,7 @@ export function WorkflowProvider({ children }: { children: ReactNode }) {
           const res = await runCreateCopyByLLM(
             { title: news.title, summary: news.summary, keywords: news.keywords },
             products,
-            { tone, styleName: st.name, styleRequirement: st.requirement, extraRequirement: extra, prompt: cfg.prompt },
-            llm
+            { tone, styleName: st.name, styleRequirement: st.requirement, extraRequirement: extra, prompt: cfg.prompt }
           );
           const text = (res && res[0] && res[0].trim()) ? res[0].trim() : "";
           candidates.push({ style: st.name, text });

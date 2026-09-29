@@ -3,12 +3,9 @@ import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 import path from "path"
 import fs from "node:fs"
-import { loadEnv } from "vite"
 
-// 真实 LLM 密钥只从本机 .env 读取，绝不写进源码/默认值（.env 已被 .gitignore 忽略）。
-// 这样前端打包产物和 git 历史里都不会出现密钥；dev 时由 /api/llm 服务端兜底使用。
-const env = loadEnv(process.env.NODE_ENV === "production" ? "production" : "development", process.cwd(), "")
-const AIGW_API_KEY = env.AIGW_API_KEY || process.env.AIGW_API_KEY || ""
+// 大模型（LLM）连接完全「网页端」——浏览器用「模型接入」填写的 provider/baseURL/apiKey/model/temperature
+// 直连目标端点（dev 时若被 CORS 拦截再回退 /api/llm 代理，密钥仍来自前端），不读本机 .env。
 // 评测体系内置默认：内联镜像自前端 src/eval/prompts.ts 的 BUILTIN_EVAL（vite 的 node 项目用 nodenext 解析，
 // 不便跨文件 import .ts；此处与前端默认值保持一致，作为 /api/admin-config 下发的 eval 默认来源）。
 const BUILTIN_EVAL = {
@@ -56,70 +53,13 @@ const BUILTIN_EVAL = {
   simulate: false,
 }
 
-// Coze 凭证与工作流 ID：全部从本机 .env 注入（.env 已被 gitignore）。
-// 仓库源码只保留占位符 "<COZE_WORKFLOW_ID>" / 空 token，不携带任何真实凭证或标识。
-// 真实值由 dev 服务器在 /api/coze、/api/coze-trial 服务端使用，不会进入前端打包产物。
-// 注意：loadEnv(..., "") 会把 .env 里的变量放入返回的 env 对象，但不会写回 process.env。
-// 因此这里统一从 env 读取（兜底 process.env，兼容在 shell 里 export 的场景）。
-const COZE_TOKEN = env.COZE_PAT || process.env.COZE_PAT || ""
-const COZE_WF_GETNEWS    = env.COZE_WF_GETNEWS || process.env.COZE_WF_GETNEWS || "<COZE_WORKFLOW_ID>"
-const COZE_WF_MATCHGOODS = env.COZE_WF_MATCHGOODS || process.env.COZE_WF_MATCHGOODS || "<COZE_WORKFLOW_ID>"
-const COZE_WF_CREATECOPY = env.COZE_WF_CREATECOPY || process.env.COZE_WF_CREATECOPY || "<COZE_WORKFLOW_ID>"
 
-// createCopy 工作流 ID：与工作台 Step4 调用同一条；后台「试运行」用此条做端到端验证
-const CREATE_COPY_WORKFLOW_ID = COZE_WF_CREATECOPY
 
-/* 后台「试运行」专用：直接调 Coze /v1/workflow/run 的 createCopy 工作流。
-   设计原因：Coze Chat API（/api/v1/chat/completions）不认工作流的 PAT，
-   而工作流调用（/v1/workflow/run）才认这把 PAT。复用 vite 里现有的 PAT，
-   让运营在后台改完模板就能立即验证真实产出，无需填任何密钥。
-   入参：{ workflow_id, parameters: { news:{title,brief,url}, products:[{product,price,classification,month,detail}], user_prompt } }
-   出参：原样透传 Coze 工作流 Run API 的 JSON 响应（含 output_wb 字符串，前端按 \n\n 切分多版本） */
-function cozeTrialRelay() {
-  return {
-    name: "coze-trial-relay",
-    configureServer(server: any) {
-      server.middlewares.use("/api/coze-trial", async (req: any, res: any) => {
-        if (req.method !== "POST") {
-          res.statusCode = 405
-          res.setHeader("Content-Type", "application/json")
-          res.end(JSON.stringify({ error: { type: "method_not_allowed", message: "仅支持 POST" } }))
-          return
-        }
-        let body = ""
-        req.on("data", (c: any) => (body += c))
-        req.on("end", async () => {
-          try {
-            const { workflow_id, parameters } = JSON.parse(body || "{}")
-            if (!parameters || typeof parameters !== "object") {
-              res.statusCode = 400
-              res.setHeader("Content-Type", "application/json")
-              res.end(JSON.stringify({ error: { type: "config_missing", message: "parameters 不能为空" } }))
-              return
-            }
-            const wfId = workflow_id || CREATE_COPY_WORKFLOW_ID
-            const upstream = await fetch("https://api.coze.cn/v1/workflow/run", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: "Bearer " + COZE_TOKEN },
-              body: JSON.stringify({ workflow_id: wfId, parameters }),
-            })
-            const text = await upstream.text()
-            res.statusCode = upstream.status
-            res.setHeader("Content-Type", upstream.headers.get("content-type") || "application/json")
-            res.end(text)
-          } catch (e: any) {
-            res.statusCode = 502
-            res.setHeader("Content-Type", "application/json")
-            res.end(JSON.stringify({ error: { type: "relay_error", message: e?.message || String(e) } }))
-          }
-        })
-      })
-    },
-  }
-}
 
-// 通用 LLM 代理：后台「试运行」用。浏览器把 baseURL/apiKey/model/messages 发给同源 /api/llm，
-// 由 Dev 服务器转发到目标 OpenAI 兼容端点并附带 Key，规避浏览器跨域(CORS)与 Key 暴露到目标域。
+
+// 通用 LLM 代理（CORS 兜底）：浏览器「模型接入」把 baseURL/apiKey/model/messages 发给同源 /api/llm，
+// 由 Dev 服务器转发到目标 OpenAI 兼容端点。主要作为「浏览器直连被 CORS 拦截」时的兜底；
+// 密钥始终来自前端随请求传入，不读本机 .env。
 function llmRelay() {
   return {
     name: "llm-relay",
@@ -136,8 +76,8 @@ function llmRelay() {
         req.on("end", async () => {
           try {
             const { baseURL, apiKey: reqApiKey, model, messages, temperature } = JSON.parse(body || "{}")
-            // 优先用前端传来的 key（运营在后台填的），兜底用本机 .env 的 AIGW_API_KEY；两者皆空才报错。
-            const apiKey = reqApiKey || AIGW_API_KEY
+            // 密钥一律来自前端「模型接入」填写并随请求传入（不读本机 .env）；为空即报错。
+            const apiKey = reqApiKey
             if (!baseURL || !apiKey || !model || !Array.isArray(messages)) {
               res.statusCode = 400
               res.setHeader("Content-Type", "application/json")
@@ -173,7 +113,7 @@ const ADMIN_CONFIG_PATH = path.resolve(import.meta.dirname, "admin", "server-con
 const ADMIN_CONFIG_BACKUP = path.resolve(import.meta.dirname, "admin", "server-config.backup.json")
 
 // 后台配置的内置默认值（与服务端/前端的 BUILTIN_DEFAULTS 对齐，仅用于「读时补默认」）
-/* 新闻抓取来源（可配置，不再写死在 Coze 工作流里）。
+/* 新闻抓取来源（可配置，真实抓取，替代旧版写死来源）。
    内置平台热榜（builtin=true，不可删除，仅可启用/停用）+ 运营自定义订阅源（builtin=false，可增删）。
    kind:
      - rss     ：标准 RSS/Atom（XML），自动解析 <item>/<entry>
@@ -193,11 +133,7 @@ const ADMIN_DEFAULTS = {
   brandColor: "#7c3aed",
   defaultPrompt: "语气有网感，突出商品卖点，加入互动与福利钩子。",
   maxNews: 10,
-  workflows: {
-    getNews: { id: COZE_WF_GETNEWS, label: "抓取新闻热点" },
-    matchGoods: { id: COZE_WF_MATCHGOODS, label: "匹配商品" },
-    createCopy: { id: COZE_WF_CREATECOPY, label: "生成营销文案" },
-  },
+
   prompt: {
     system:
       '你是一位资深的微博营销文案专家，擅长把热点新闻与商品结合，产出高转化率的微博文案。\n\n' +
@@ -226,16 +162,16 @@ const ADMIN_DEFAULTS = {
   // 真实密钥来源：① 本机 .env 的 AIGW_API_KEY（dev 时 /api/llm 服务端兜底）；
   //            ② 运营在后台「模型接入」填写并存于本机 localStorage（前端传来优先）。
   llm: {
-    simulate: false,
+    provider: "OpenAI 兼容",
     baseURL: "https://aigw.yuexiuproperty.cn/v1",
     model: "deepseek-v4-flash",
     apiKey: "",
+    temperature: 0.7,
   },
-  // 商品匹配（matchGoods）配置：可切换「Coze 工作流」或「大模型」两种模式。
-  // 大模型模式下，本 prompt 由 {{title}}/{{brief}} 填充后发给 LLM，
-  // 产出商品关键词 → 前端在商品库里检索并推荐命中商品。
+  // 商品匹配（matchGoods）配置：统一走「大模型 LLM」模式，本 prompt 由 {{title}}/{{brief}}
+  // 填充后发给 LLM，产出商品关键词 → 前端在商品库里检索并推荐命中商品。
   matchGoods: {
-    mode: "coze",
+    mode: "llm",
     prompt: `# 角色：商品匹配师
 你是一名专业的电商商品匹配师，擅长从热点新闻中识别出用户可能产生的消费需求，并将其转化为可在商品库中检索的关键词。
 
@@ -327,15 +263,7 @@ function backfillAdminConfig(c: any) {
   out.brandColor = typeof c.brandColor === "string" && c.brandColor.trim() ? c.brandColor : ADMIN_DEFAULTS.brandColor
   out.defaultPrompt = typeof c.defaultPrompt === "string" ? c.defaultPrompt : ADMIN_DEFAULTS.defaultPrompt
   out.maxNews = typeof c.maxNews === "number" ? c.maxNews : ADMIN_DEFAULTS.maxNews
-  out.workflows =
-    c.workflows && typeof c.workflows === "object" && !Array.isArray(c.workflows)
-      ? c.workflows
-      : deepClone(ADMIN_DEFAULTS.workflows)
-  ;["getNews", "matchGoods", "createCopy"].forEach((k) => {
-    const wf = out.workflows as Record<string, any>
-    const def = ADMIN_DEFAULTS.workflows as Record<string, any>
-    if (!wf[k] || typeof wf[k] !== "object") wf[k] = deepClone(def[k])
-  })
+
   out.prompt = {}
   ;(["system", "template", "itemFormat"] as const).forEach((k) => {
     out.prompt[k] =
@@ -352,7 +280,7 @@ function backfillAdminConfig(c: any) {
   out.matchGoods =
     c.matchGoods && typeof c.matchGoods === "object" && !Array.isArray(c.matchGoods)
       ? {
-          mode: c.matchGoods.mode === "llm" ? "llm" : "coze",
+          mode: "llm",
           prompt:
             typeof c.matchGoods.prompt === "string" && c.matchGoods.prompt.trim()
               ? c.matchGoods.prompt
@@ -372,8 +300,7 @@ function validateAdminConfig(c: any): { ok: true } | { ok: false; error: string 
   if (!c || typeof c !== "object" || Array.isArray(c)) return { ok: false, error: "配置文件不是合法的对象" }
   if (typeof c.siteName !== "string" || !c.siteName.trim()) return { ok: false, error: "站点名称(siteName)不能为空" }
   if (typeof c.brandColor !== "string" || !c.brandColor.trim()) return { ok: false, error: "品牌色(brandColor)不能为空" }
-  if (!c.workflows || typeof c.workflows !== "object" || Array.isArray(c.workflows))
-    return { ok: false, error: "工作流配置(workflows)缺失或格式错误" }
+
   if (!c.prompt || typeof c.prompt !== "object") return { ok: false, error: "提示词配置(prompt)缺失" }
   for (const k of ["system", "template", "itemFormat"] as const) {
     if (typeof c.prompt[k] !== "string" || !c.prompt[k].trim()) return { ok: false, error: `提示词块 prompt.${k} 不能为空` }
@@ -392,8 +319,8 @@ function validateAdminConfig(c: any): { ok: true } | { ok: false; error: string 
   if (c.matchGoods) {
     if (typeof c.matchGoods !== "object" || Array.isArray(c.matchGoods))
       return { ok: false, error: "商品匹配(matchGoods)格式错误" }
-    if (c.matchGoods.mode !== "coze" && c.matchGoods.mode !== "llm")
-      return { ok: false, error: "matchGoods.mode 必须为 coze 或 llm" }
+    if (c.matchGoods.mode !== "llm")
+      return { ok: false, error: "matchGoods.mode 必须为 llm" }
     if (typeof c.matchGoods.prompt !== "string" || !c.matchGoods.prompt.trim())
       return { ok: false, error: "matchGoods.prompt 不能为空" }
   }
@@ -478,7 +405,7 @@ function adminConfigRelay() {
 }
 
 /* ============================================================
- * 新闻抓取来源：可配置、真实抓取（替代写死在 Coze 工作流里）
+ * 新闻抓取来源：可配置、真实抓取
  *   - /api/news      聚合所有「已启用」来源 → 新闻列表（工作台 Step1 调用）
  *   - /api/news-test 逐源真实抓取一次 → 诊断（成功/失败/条数/耗时/原因）
  * 解析支持：rss / json(自定义路径) / weibo / toutiao / bilibili / zhihu / baidu
@@ -794,27 +721,13 @@ function newsRelay() {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), llmRelay(), cozeTrialRelay(), adminConfigRelay(), newsRelay()],
+  plugins: [react(), tailwindcss(), llmRelay(), adminConfigRelay(), newsRelay()],
   resolve: {
     alias: { "@": path.resolve(import.meta.dirname, "./src") },
   },
   server: {
     host: true,
     port: 5173,
-    proxy: {
-      // 浏览器请求同源的 /api/coze，由 Vite 开发服务器转发到 Coze 并注入鉴权头，
-      // 既避免 token 暴露在前端，也规避浏览器跨域(CORS)限制。
-      "/api/coze": {
-        target: "https://api.coze.cn",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api\/coze/, "/v1/workflow/run"),
-        configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq) => {
-            proxyReq.setHeader("Authorization", `Bearer ${COZE_TOKEN}`)
-            proxyReq.setHeader("Content-Type", "application/json")
-          })
-        },
-      },
-    },
+
   },
 })

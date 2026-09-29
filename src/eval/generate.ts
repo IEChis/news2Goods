@@ -1,5 +1,5 @@
 import type { EvalMaterial } from "./types";
-import { loadCopyConfig, assembleCopyMessages } from "../api/promptConfig";
+import { assembleCopyMessages, loadCopyConfig, type PromptConfig } from "../api/promptConfig";
 import type { Product } from "../types";
 
 type LLMCall = (messages: { role: string; content: string }[], temperature: number) => Promise<string>;
@@ -12,18 +12,26 @@ export interface GenerateOpts {
   simulate: boolean;
   /** 真实模型调用（由 runEval 注入，指向 /api/llm）；不传且非 simulate 时抛错 */
   llmCall?: LLMCall;
+  /** 本次评测使用的「被测生成 Prompt」快照（由 runEval 注入；不传则回退实时默认） */
+  prompt?: PromptConfig;
+  /** 生成温度（由 runEval 注入；默认 0.7） */
+  temperature?: number;
 }
 
 /** 真实生成：走「接入的大模型」（/api/llm，OpenAI 兼容），取代原 Coze createCopy 工作流 */
 async function realGenerate(o: GenerateOpts): Promise<string> {
-  const cfg = await loadCopyConfig();
+  // 优先使用本次评测注入的「被测生成 Prompt」；未注入时回退实时默认（兼容性保护）
+  let prompt = o.prompt;
+  if (!prompt || (!prompt.system && !prompt.template)) {
+    prompt = (await loadCopyConfig()).prompt;
+  }
   const { system, user } = assembleCopyMessages({
     news: o.material.news,
     products: o.material.products as unknown as Product[],
     tone: o.tone,
     styleName: o.styleName,
     styleRequirement: o.styleRequirement,
-    prompt: cfg.prompt,
+    prompt,
   });
   if (!o.llmCall) {
     throw new Error("未注入大模型调用（请检查「模型接入」baseURL / apiKey / model 是否配置）");
@@ -33,7 +41,7 @@ async function realGenerate(o: GenerateOpts): Promise<string> {
       { role: "system", content: system },
       { role: "user", content: user },
     ],
-    0.7
+    o.temperature ?? 0.7
   );
   if (!text.trim()) throw new Error("大模型返回为空");
   // 多版本：按 \n\n 切分，取首段作为该用例文案

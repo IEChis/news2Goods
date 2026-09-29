@@ -2,11 +2,11 @@
 
 一个面向「电商 × 媒体热点」的营销工作台 Web 原型：覆盖 **抓热点 → 建议匹配 → 手动匹配 → 创作文案 → 审核发送** 的全流程闭环演示。
 
-> 本项目实现了 **Web 工作台 + 运营后台** 两大部分。AI 能力（商品匹配、文案生成）由外部 **Coze 工作流** 或 **大语言模型（LLM）** 提供；新闻抓取改为 **可配置的新闻源**（内置平台热榜 + 运营自定义订阅源），不再强依赖 Coze。前端负责：调用后端 API → 接收/解析 JSON → 渲染页面 → 保持 5 步数据状态贯通。
+> 本项目实现了 **Web 工作台 + 运营后台** 两大部分。AI 能力（商品匹配、文案生成）统一由**网页端配置的「接入大模型（LLM）」**提供；新闻抓取为 **可配置的新闻源**（内置平台热榜 + 运营自定义订阅源）。前端负责：调用后端 API → 接收/解析 JSON → 渲染页面 → 保持 5 步数据状态贯通。
 
 **写在前面**：
 
-- 是初次尝试的B端产品demo，是逐步从基于Coze工作流的调用，修改替换为LLM调用的，算是一个逐渐变得更加灵活的过程？不过也还有很多完善正在路上 :-D
+- 是初次尝试的 B 端产品 demo，AI 能力已统一改为「网页端配置的大模型（LLM）」调用，密钥只存浏览器、不依赖本机 .env，仍在持续完善中 :-D
 ---
 
 ## 技术栈
@@ -42,10 +42,10 @@ npm run dev      # 启动开发服务器
 
 ```
 ┌──────────────┐         ┌──────────────────────────────┐         ┌────────────────────┐
-│  工作台 (React) │ ──────▶ │  Vite 中间件（vite.config.ts）  │ ──────▶ │ Coze 工作流 / LLM    │
-│  :5173/        │ ◀────── │  /api/coze /api/llm /api/news │ ◀────── │ 外部 AI 能力          │
-└──────────────┘         │  /api/admin-config /api/coze-trial │    └────────────────────┘
-                         │  /api/news-test               │
+│  工作台 (React) │ ──────▶ │  Vite 中间件（vite.config.ts）  │ ──────▶ │ 接入的大模型（LLM）  │
+│  :5173/        │ ◀────── │  /api/llm  /api/news           │ ◀────── │ 外部 AI 能力          │
+└──────────────┘         │  /api/admin-config /api/news-test│    └────────────────────┘
+                         │                               │
 ┌──────────────┐         └──────────────────────────────┘
 │  运营后台 (admin) │ ──────▶ 同一组 /api/admin-config 读写 server-config.json
 │  :5173/admin  │
@@ -53,7 +53,7 @@ npm run dev      # 启动开发服务器
 ```
 
 - **工作台** 与 **后台** 共享同一套配置（服务端权威的 `admin/server-config.json`）。
-- Vite 在开发期充当「后端」：`vite.config.ts` 中注册了 6 个 API 中间件，负责转发 Coze/LLM 请求、托管新闻抓取、并提供配置读写接口。Token / API Key 只在服务端注入，不进入前端打包产物，避免暴露与跨域问题。
+- Vite 在开发期充当「后端」：`vite.config.ts` 中注册了若干 API 中间件，负责兜底转发大模型请求、托管新闻抓取、并提供配置读写接口。**大模型（LLM）的 `apiKey` 由运营在后台「模型接入」（或工作台「模型设置」）填写并存于浏览器 `localStorage`，由前端直连目标端点**（dev 时若被 CORS 拦截再回退服务端 `/api/llm` 代理），因此不再依赖本机 `.env`。
 - 改动 `vite.config.ts` 后**必须重启 dev server** 才生效。
 
 ### 三级配置体系
@@ -96,11 +96,11 @@ npm run dev      # 启动开发服务器
 | 页面 | 作用 |
 | --- | --- |
 | **通用设置** | 站点名称/描述、品牌主色（两端共用）、默认创作提示词。 |
-| **工作流管理** | 三个独立 Coze 工作流的当前配置（见下文）。 |
+| **模型接入** | 网页端统一配置大模型（provider / baseURL / apiKey / model / temperature）+ 测试连接。 |
 | **数据源** | 查看当前生效的配置来源（服务端/本机/默认）。 |
 | **文案模板** | 角色设定、素材模板、单件格式、创作风格、语调预设；支持实时预览与「试运行」调试。 |
 | **商品库** | 商品新增/编辑/删除、批量操作、导入导出。 |
-| **商品匹配** | `matchGoods` 双模式：Coze 工作流 或 大模型（LLM）。 |
+| **商品匹配** | `matchGoods` 统一走「接入的大模型（LLM）」：分析新闻 → 生成关键词 → 在商品库检索推荐。 |
 | **新闻来源** | 可配置的新闻抓取来源 + 真实抓取测试 + 合规/风控说明。 |
 
 通用能力：脏状态追踪 + `beforeunload` 拦截 + `Ctrl/⌘+S` 保存；配置可导出/导入 JSON（导入时校验）。保存成功会明确提示写入去向（服务端 / 本机）。
@@ -109,9 +109,9 @@ npm run dev      # 启动开发服务器
 
 ## 重点功能详解
 
-### 1. 可配置新闻源（替代原 Coze getNews 工作流）
+### 1. 可配置新闻源
 
-工作台 Step1 不再依赖单一 Coze 工作流，改为调用 `/api/news`（服务端聚合**所有「已启用」来源**，按热度排序）。
+工作台 Step1 调用 `/api/news`（服务端聚合**所有「已启用」来源**，按热度排序）。
 
 **来源管理（后台 `#/news`）**
 - **内置平台热榜（5 个，不可删）**：微博热搜 / 今日头条热榜 / B站热门 / 知乎热榜 / 百度热点。
@@ -143,12 +143,9 @@ npm run dev      # 启动开发服务器
 
 保存后工作台即时生效（新增商品可在 Step2 兜底匹配、Step3 搜索选用）。
 
-### 3. 商品匹配双模式（`#/match`）
+### 3. 商品匹配（大模型）（`#/match`）
 
-`matchGoods` 支持两种匹配方式（由 `MatchConfig` 驱动）：
-
-- **Coze 模式**：走原 Coze 工作流（输出 `output_goods_list`）。
-- **LLM 模式**：分析新闻 → 生成匹配关键词 → 在商品库检索推荐命中商品。配置含 `baseURL` / `model` / `apiKey` / `simulate`（无 key 或勾选 simulate 时本机模拟），并可在页面「试运行」（填 title/brief 调 `/api/llm`，解析关键词渲染）。
+`matchGoods` 统一走「接入的大模型（LLM）」模式（由 `MatchConfig` 驱动）：分析新闻 → 生成匹配关键词 → 在本地商品库检索推荐命中商品。配置含 `baseURL` / `model` / `apiKey` / `temperature`，并可在页面「试运行」（填 title/brief 调 `/api/llm`，解析关键词渲染）。未配置密钥时自动回退新闻自带关键词做本地检索兜底。
 
 ### 4. 文案模板与多候选（`#/prompts`）
 
@@ -182,24 +179,13 @@ npm run dev      # 启动开发服务器
 
 ## AI 能力接入
 
-### Coze 工作流（已发布，拆分为 3 个独立工作流）
+### 大模型（LLM）模式 —— 网页端统一配置
 
-> 早期单一工作流 `<COZE_WORKFLOW_ID_ABANDONED>` 已废弃，拆分为以下三个：
-
-| 工作流 | ID | 入参 → 出参 |
-| --- | --- | --- |
-| getNews（热点抓取） | `<COZE_WORKFLOW_ID_GETNEWS>` | `(input, count) → news_list` ⚠️ 现已非主路径，被可配置新闻源取代 |
-| matchGoods（商品匹配） | `<COZE_WORKFLOW_ID_MATCHGOODS>` | `(news{title,brief,url}) → output_goods_list: Array<{documentId,output}>` |
-| createCopy（文案生成） | `<COZE_WORKFLOW_ID_CREATECOPY>` | `(news, products:{product,price,classification,month,detail}[], user_prompt) → output_wb` |
-
-- 前端经同源 `POST /api/coze` 转发至 `https://api.coze.cn/v1/workflow/run`，服务端注入 `Authorization`。
-- `createCopy` 节点「系统提示词留空、用户提示词」按后台模板下发；前端兼容 `output_wb / output_red_list / copies / output / text` 多字段名与数组/字符串。
-- **离线兜底**：Coze 调用失败 / 网络不可用时自动回退本地模拟文案，页面标注「模拟数据」，保证 Demo 永远可用。
-
-### LLM 大模型模式
-
-- 通过 `/api/llm` 中继（自动剥离 `baseURL` 末尾 `/` 与 `/chat/completions` 避免双拼），兼容 OpenAI 风格接口（如 Coze OpenAI 端点 `https://api.coze.cn/api/v1/chat/completions`）。
-- 用于「商品匹配（LLM 模式）」与「文案模板试运行」。
+- **连接放在网页端**：运营在运营后台「模型接入」（或工作台「模型设置」）填写 `provider` / `baseURL` / `apiKey` / `model` / `temperature`，浏览器直连目标 OpenAI 兼容端点（如 `https://aigw.yuexiuproperty.cn/v1/chat/completions`），**不再依赖本机 `.env`**，也不需要 dev 服务器即可发起调用。
+- 自动剥离 `baseURL` 末尾 `/` 与 `/chat/completions` 避免双拼；兼容标准 OpenAI 风格接口。
+- **兜底**：若浏览器直连被网关 CORS 拦截 / 网络不可达，自动回退同源 `/api/llm` 代理（dev 服务器转发，密钥仍由前端传入，不读 `.env`）。
+- 用于「商品匹配（大模型）」与「文案模板 / 试运行」。
+- ⚠️ **安全提示**：网页端直连意味着 `apiKey` 会出现在浏览器请求里（与「在网页 UI 填写密钥」同源，属客户端密钥）。个人演示 / 内网可接受；若对外发布，建议改为自有后端代理转发，避免泄露 Key。
 
 ---
 
@@ -208,7 +194,7 @@ npm run dev      # 启动开发服务器
 ```
 newsGoods-try1/
 ├─ index.html                 # 工作台 HTML 入口
-├─ vite.config.ts             # dev server + 6 个 API 中间件（见下）
+├─ vite.config.ts             # dev server + API 中间件（/api/llm、/api/admin-config、/api/news*）
 ├─ package.json
 ├─ tsconfig*.json
 ├─ admin/                     # 运营后台（纯静态 vanilla，零依赖）
@@ -223,7 +209,8 @@ newsGoods-try1/
 └─ src/
    ├─ main.tsx / App.tsx / App.css / index.css
    ├─ api/
-   │  ├─ coze.ts              # 三个 Coze 工作流调用 + LLM 链路 + 离线兜底
+   │  ├─ llmService.ts       # 统一大模型调用出口（直连 + /api/llm 兜底）
+│  ├─ llmConfig.ts        # 单一 LLM 配置数据源（localStorage + /api/admin-config）
    │  ├─ news.ts              # runFetchNews(/api/news) + classifyRisk 风险判定
    │  ├─ products.ts          # loadProducts 三级读取商品库
    │  └─ promptConfig.ts      # loadCopyConfig / loadMatchConfig / loadNewsSources
@@ -241,10 +228,8 @@ newsGoods-try1/
 
 | 端点 | 作用 |
 | --- | --- |
-| `/api/coze` | 转发 Coze 工作流调用（注入鉴权） |
-| `/api/llm` | 转发 LLM（OpenAI 风格）调用 |
+| `/api/llm` | 兜底转发 LLM（OpenAI 风格）调用（CORS 拦截时启用，密钥由前端传入） |
 | `/api/admin-config` | 读写 `server-config.json`（GET 读 / POST 写，写前备份 + 校验） |
-| `/api/coze-trial` | Coze 试运行 |
 | `/api/news` | 聚合所有「已启用」新闻来源，按热度排序返回 |
 | `/api/news-test` | 逐源真实抓取诊断（成功/失败/条数/耗时/原因） |
 
@@ -253,10 +238,10 @@ newsGoods-try1/
 ## 功能边界与已知限制
 
 - ✅ 调用外部 AI 能力、解析其 JSON、渲染页面、5 步状态贯通、商品库可视化运营、新闻源可配置与测试。
-- ❌ 不实现新闻爬虫算法 / 商品推荐算法 / LLM 推理本身（均由 Coze 或外部 LLM 完成）。
+- ❌ 不实现新闻爬虫算法 / 商品推荐算法 / LLM 推理本身（均由接入的外部 LLM 完成）。
 - ❌ 微博「发送」为模拟动作，仅前端状态演示。
 - ⚠️ 内置平台热榜（微博/知乎等）在原型/沙箱环境常因反爬返回 401/403，属预期；生产应接入官方开放平台或商业舆情服务。
-- ⚠️ `vite.config.ts` 改动需重启 dev server；令牌/密钥仅保留在服务端，写入服务端前会剥离明文 `apiKey`。
+- ⚠️ `vite.config.ts` 改动需重启 dev server；**LLM** 的 `apiKey` 由前端「模型接入」/「模型设置」填写并直连调用，只存浏览器 `localStorage`，不进入前端包、也不落服务端文件。
 
 ---
 

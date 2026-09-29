@@ -5,7 +5,7 @@
  * 商品库是「运营可维护的单一数据源」：运营在后台新增 / 编辑的商品，经三级配置落到
  * 工作台后，Step3 手动匹配即可搜到，本地匹配算法（getMatchScores）也能把它推荐出来。
  *
- * 注意：未来 matchGoods 可能不再走 Coze，而是由外接大模型基于本地商品库实现；
+ * 注意：商品匹配统一走外接大模型（LLM）基于本地商品库实现；
  * 届时本地商品库就是匹配算法的唯一数据来源，这里就是那条链路的入口。
  */
 import { mockProducts } from "../data/mock";
@@ -37,7 +37,7 @@ function mapToProduct(p: RawProduct): Product {
     name: p.name,
     price: p.price,
     originalPrice: p.originalPrice,
-    image: "", // 渐变/图标由 icon+gradient 驱动，image 仅作 Coze 兜底字段保留
+    image: "", // 渐变/图标由 icon+gradient 驱动，image 仅作兜底字段保留
     selling: p.selling || [],
     category: p.category || "",
     matchKeywords: deriveMatchKeywords(p),

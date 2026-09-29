@@ -15,7 +15,7 @@ export default function Step3Match() {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"match" | "price" | "sales">("match");
 
-  // 匹配池 = Coze 实时结果（如有）+ 本地商品库（运营后台维护的单一数据源）。
+  // 匹配池 = 大模型匹配结果（如有）+ 本地商品库（运营后台维护的单一数据源）。
   // 合并后：后台新增的商品在 Step3 可被搜到，本地匹配算法(getMatchScores)也会推荐它。
   const items = useMemo<Item[]>(() => {
     const lib = (productLibrary.length ? productLibrary : mockProducts).map((p) => {
@@ -82,18 +82,14 @@ export default function Step3Match() {
       <div className="mt-5">
         <span className={`inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full text-[12px] font-medium ${
           matchMode === "llm" ? "bg-violet-50 text-violet-700"
-          : cozeLoaded ? "bg-brand-50 text-brand-700" : "bg-gray-100 text-gray-500"
+          : "bg-gray-100 text-gray-500"
         }`}>
           {matchMode === "llm" ? (
             <>
               <Sparkles className="w-3.5 h-3.5" /> 大模型匹配：AI 关键词「{matchKeywords.join("、") || "—"}」→ 商品库检索
             </>
-          ) : cozeLoaded ? (
-            <>
-              <Sparkles className="w-3.5 h-3.5" /> 商品品类由 Coze 工作流实时匹配（价格/卖点为示例视觉）
-            </>
           ) : (
-            "未接入 Coze，当前展示演示商品"
+            "未接入大模型，当前展示演示商品"
           )}
         </span>
       </div>
@@ -134,12 +130,12 @@ export default function Step3Match() {
                   <div className="min-w-0 flex-1">
                     <div className="text-[14px] font-medium text-gray-900 line-clamp-1">{m.product.name}</div>
                     <div className="mt-1 text-[12px] text-gray-500 line-clamp-1">
-                      {m.fromCoze ? (matchMode === "llm" ? "大模型匹配" : "Coze 实时匹配") : `${m.product.selling.slice(0, 3).join(" · ")}`}
+                      {m.fromCoze ? "大模型匹配" : `${m.product.selling.slice(0, 3).join(" · ")}`}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-[15px] font-semibold text-rose-500 tabular-nums">¥{m.product.price}</div>
-                    <div className="mt-0.5 text-[11px] text-gray-400">{m.fromCoze ? (matchMode === "llm" ? "大模型匹配" : "Coze 匹配") : `匹配度 ${m.score}%`}</div>
+                    <div className="mt-0.5 text-[11px] text-gray-400">{m.fromCoze ? "大模型匹配" : `匹配度 ${m.score}%`}</div>
                   </div>
                   <button
                     onClick={() => isBound ? unbindProduct(m.product.id) : bindProduct(m.product.id)}
