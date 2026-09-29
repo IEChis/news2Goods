@@ -2778,7 +2778,10 @@
 
   /* ---------------- 初始化 ---------------- */
   function init() {
-    document.querySelector('.topbar-right a[href="http://localhost:5173/"]').href = WORKBENCH_URL;
+    // 仅当返回链接仍指向旧 dev 地址时才重写；新版本 index.html 已用相对路径 "/"（dev/prod 通用），
+    // 此处若直接对 querySelector 结果取 .href 会在找不到元素时抛错并中断整个 init()。
+    var backLink = document.querySelector('.topbar-right a[href="http://localhost:5173/"]');
+    if (backLink) backLink.href = WORKBENCH_URL;
     document.getElementById('reprobe').addEventListener('click', reprobe);
     document.getElementById('btn-save').addEventListener('click', save);
     document.getElementById('btn-reset').addEventListener('click', resetLocal);
